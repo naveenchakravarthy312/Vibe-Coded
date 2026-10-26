@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">Scratchpad</string>
+    <string name="scratchpad_placeholder">Start typing your notes, thoughts, or code…</string>
+    <string name="action_save">Save</string>
+    <string name="action_save_as_file">Save to File</string>
+    <string name="action_open_file">Open File</string>
+    <string name="action_new">New</string>
+    <string name="action_clear">Clear</string>
+    <string name="action_share">Share</string>
+    <string name="action_copy">Copy All</string>
+    <string name="action_saved_notes">Saved Notes</string>
+    <string name="search_notes_placeholder">Search saved notes…</string>
+    <string name="empty_notes_title">No saved notes yet</string>
+    <string name="empty_notes_subtitle">Save your current scratchpad or open a text file to keep it here.</string>
+</resources>
