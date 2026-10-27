@@ -1,0 +1,6 @@
+{
+  "name": "VibeHabits",
+  "description": "Offline-first habit tracker with minimalist matte dark styling, streak counters, 7-day mini calendar strips, and universal JSON export/import.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
