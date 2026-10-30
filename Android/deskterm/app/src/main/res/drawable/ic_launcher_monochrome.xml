@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Terminal window outline -->
+    <path
+        android:pathData="M31,26 h46 c3.8,0 7,3.2 7,7 v42 c0,3.8 -3.2,7 -7,7 h-46 c-3.8,0 -7,-3.2 -7,-7 v-42 c0,-3.8 3.2,-7 7,-7 z"
+        android:strokeWidth="3.2"
+        android:strokeColor="#FFFFFF"
+        android:fillColor="#00000000" />
+    <!-- Title bar divider -->
+    <path
+        android:pathData="M24,37 L84,37"
+        android:strokeWidth="2"
+        android:strokeColor="#FFFFFF" />
+    <!-- Three window dots -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M31,31.5 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M38,31.5 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M45,31.5 a2,2 0 1,0 4,0 a2,2 0 1,0 -4,0" />
+    <!-- Terminal Prompt Chevron '>' -->
+    <path
+        android:pathData="M35,48 L46,57 L35,66"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000" />
+    <!-- Terminal Cursor '_' -->
+    <path
+        android:pathData="M52,66 L67,66"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+</vector>

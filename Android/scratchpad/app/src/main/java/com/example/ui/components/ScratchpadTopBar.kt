@@ -269,7 +269,7 @@ fun ScratchpadTopBar(
                         )
 
                         DropdownMenuItem(
-                            text = { Text("Font & Typography", color = TextPrimary) },
+                            text = { Text("Theme & Typography", color = TextPrimary) },
                             onClick = {
                                 menuExpanded = false
                                 onOpenFontSettings()

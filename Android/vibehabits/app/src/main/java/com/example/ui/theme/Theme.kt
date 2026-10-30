@@ -61,15 +61,30 @@ val VibeHabitsLightColorScheme = lightColorScheme(
 fun VibeHabitsTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
+    amoledMode: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
-    val colorScheme = when {
+    val effectiveDark = darkTheme || amoledMode
+    val baseColorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            if (effectiveDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        darkTheme -> VibeHabitsDarkColorScheme
+        effectiveDark -> VibeHabitsDarkColorScheme
         else -> VibeHabitsLightColorScheme
+    }
+
+    val colorScheme = if (amoledMode) {
+        baseColorScheme.copy(
+            background = Color.Black,
+            onBackground = Color(0xFFF0F0F0),
+            surface = Color.Black,
+            onSurface = Color(0xFFF0F0F0),
+            surfaceVariant = Color(0xFF0C0C0E),
+            outlineVariant = Color(0xFF222226)
+        )
+    } else {
+        baseColorScheme
     }
 
     val view = LocalView.current
@@ -78,8 +93,8 @@ fun VibeHabitsTheme(
             val window = (view.context as? Activity)?.window
             if (window != null) {
                 val insetsController = WindowCompat.getInsetsController(window, view)
-                insetsController.isAppearanceLightStatusBars = !darkTheme
-                insetsController.isAppearanceLightNavigationBars = !darkTheme
+                insetsController.isAppearanceLightStatusBars = !effectiveDark
+                insetsController.isAppearanceLightNavigationBars = !effectiveDark
             }
         }
     }

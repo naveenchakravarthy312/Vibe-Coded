@@ -38,6 +38,9 @@ class ScratchpadViewModel(application: Application) : AndroidViewModel(applicati
         // Restore saved font size and preferences
         val savedFontSize = prefs.getInt("font_size", 15)
         val savedMonospace = prefs.getBoolean("is_monospace", true)
+        val savedAmoled = prefs.getBoolean("is_amoled_mode", false)
+        val savedDynamicColor = prefs.getBoolean("is_dynamic_color", true)
+        val savedSystemTheme = prefs.getBoolean("use_system_theme", true)
         val draftText = prefs.getString("draft_text", "") ?: ""
 
         val initialValue = if (draftText.isNotEmpty()) {
@@ -60,7 +63,10 @@ Tap anywhere to begin typing…
             it.copy(
                 textFieldValue = initialValue,
                 fontSizeSp = savedFontSize,
-                isMonospace = savedMonospace
+                isMonospace = savedMonospace,
+                isAmoledMode = savedAmoled,
+                isDynamicColor = savedDynamicColor,
+                useSystemTheme = savedSystemTheme
             )
         }
 
@@ -174,6 +180,24 @@ Tap anywhere to begin typing…
         val next = !_uiState.value.isMonospace
         _uiState.update { it.copy(isMonospace = next) }
         prefs.edit().putBoolean("is_monospace", next).apply()
+    }
+
+    fun toggleAmoledMode() {
+        val next = !_uiState.value.isAmoledMode
+        _uiState.update { it.copy(isAmoledMode = next) }
+        prefs.edit().putBoolean("is_amoled_mode", next).apply()
+    }
+
+    fun toggleDynamicColor() {
+        val next = !_uiState.value.isDynamicColor
+        _uiState.update { it.copy(isDynamicColor = next) }
+        prefs.edit().putBoolean("is_dynamic_color", next).apply()
+    }
+
+    fun toggleSystemTheme() {
+        val next = !_uiState.value.useSystemTheme
+        _uiState.update { it.copy(useSystemTheme = next) }
+        prefs.edit().putBoolean("use_system_theme", next).apply()
     }
 
     fun toggleZenMode() {

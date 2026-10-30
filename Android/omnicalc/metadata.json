@@ -1,0 +1,6 @@
+{
+  "name": "OmniCalc",
+  "description": "Offline calculator with scientific mode, measurement and unit converters, and persistent calculation history.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

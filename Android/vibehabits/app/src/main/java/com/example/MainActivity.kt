@@ -5,7 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.ui.HabitViewModel
 import com.example.ui.HabitsScreen
@@ -16,8 +18,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            VibeHabitsTheme {
-                val viewModel: HabitViewModel = viewModel()
+            val viewModel: HabitViewModel = viewModel()
+            val isAmoledMode by viewModel.isAmoledMode.collectAsStateWithLifecycle()
+            VibeHabitsTheme(amoledMode = isAmoledMode) {
                 HabitsScreen(
                     viewModel = viewModel,
                     modifier = Modifier.fillMaxSize()

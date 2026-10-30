@@ -29,6 +29,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Contrast
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
@@ -95,6 +96,7 @@ fun HabitsScreen(
     val selectedCategory by viewModel.selectedCategoryFilter.collectAsStateWithLifecycle()
     val exportJsonString by viewModel.exportJsonString.collectAsStateWithLifecycle()
     val uiMessage by viewModel.uiMessage.collectAsStateWithLifecycle()
+    val isAmoledMode by viewModel.isAmoledMode.collectAsStateWithLifecycle()
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -180,11 +182,42 @@ fun HabitsScreen(
                         }
                     }
 
-                    // Top Bar Action Buttons: Export and Import in AccentCyan
+                    // Top Bar Action Buttons: AMOLED toggle, Export, and Import
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
+                        TextButton(
+                            onClick = { viewModel.toggleAmoledMode() },
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                            modifier = Modifier
+                                .then(
+                                    if (isAmoledMode) {
+                                        Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(SurfaceVariantDark)
+                                            .border(1.dp, AccentCyan, RoundedCornerShape(6.dp))
+                                    } else {
+                                        Modifier
+                                    }
+                                )
+                                .testTag("top_bar_amoled_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Contrast,
+                                contentDescription = "Toggle AMOLED Mode",
+                                tint = if (isAmoledMode) AccentCyan else TextSecondary,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "AMOLED",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (isAmoledMode) AccentCyan else TextSecondary,
+                                fontWeight = if (isAmoledMode) FontWeight.Bold else FontWeight.SemiBold
+                            )
+                        }
+
                         TextButton(
                             onClick = {
                                 exportImportInitialTab = ExportImportTab.EXPORT

@@ -1,6 +1,7 @@
 package com.example.ui
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.AppDatabase
@@ -18,6 +19,8 @@ import java.time.format.DateTimeFormatter
 
 class HabitViewModel(application: Application) : AndroidViewModel(application) {
 
+    private val prefs = application.getSharedPreferences("vibe_habits_prefs", Context.MODE_PRIVATE)
+
     private val repository: HabitRepository = HabitRepository(
         AppDatabase.getDatabase(application).habitDao()
     )
@@ -27,6 +30,9 @@ class HabitViewModel(application: Application) : AndroidViewModel(application) {
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
+
+    private val _isAmoledMode = MutableStateFlow(prefs.getBoolean("amoled_mode", false))
+    val isAmoledMode: StateFlow<Boolean> = _isAmoledMode.asStateFlow()
 
     private val _selectedCategoryFilter = MutableStateFlow<String?>(null)
     val selectedCategoryFilter: StateFlow<String?> = _selectedCategoryFilter.asStateFlow()
@@ -128,6 +134,13 @@ class HabitViewModel(application: Application) : AndroidViewModel(application) {
                 onComplete(false, errorMsg)
             }
         }
+    }
+
+    fun toggleAmoledMode() {
+        val next = !_isAmoledMode.value
+        _isAmoledMode.value = next
+        prefs.edit().putBoolean("amoled_mode", next).apply()
+        _uiMessage.value = if (next) "AMOLED mode enabled" else "AMOLED mode disabled"
     }
 
     fun clearUiMessage() {

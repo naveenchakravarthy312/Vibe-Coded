@@ -6,7 +6,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import com.example.ui.ScratchpadScreen
 import com.example.ui.ScratchpadViewModel
@@ -24,7 +27,15 @@ class MainActivity : ComponentActivity() {
         handleIncomingIntent(intent)
 
         setContent {
-            ScratchpadTheme(darkTheme = true) {
+            val uiState by viewModel.uiState.collectAsState()
+            val systemInDark = isSystemInDarkTheme()
+            val isDark = if (uiState.isAmoledMode) true else (if (uiState.useSystemTheme) systemInDark else true)
+
+            ScratchpadTheme(
+                darkTheme = isDark,
+                dynamicColor = uiState.isDynamicColor,
+                amoledMode = uiState.isAmoledMode
+            ) {
                 ScratchpadScreen(
                     viewModel = viewModel,
                     modifier = Modifier.fillMaxSize()

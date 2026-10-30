@@ -252,9 +252,13 @@ fun ScratchpadScreen(
         FontSettingsDialog(
             fontSizeSp = uiState.fontSizeSp,
             isMonospace = uiState.isMonospace,
+            isAmoledMode = uiState.isAmoledMode,
+            isDynamicColor = uiState.isDynamicColor,
             onAdjustFontSize = { viewModel.adjustFontSize(it) },
             onResetFontSize = { viewModel.resetFontSize() },
             onToggleMonospace = { viewModel.toggleMonospace() },
+            onToggleAmoledMode = { viewModel.toggleAmoledMode() },
+            onToggleDynamicColor = { viewModel.toggleDynamicColor() },
             onDismiss = { viewModel.toggleFontDialog(false) }
         )
     }

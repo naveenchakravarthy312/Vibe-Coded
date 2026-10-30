@@ -195,9 +195,13 @@ fun WipeConfirmDialog(
 fun FontSettingsDialog(
     fontSizeSp: Int,
     isMonospace: Boolean,
+    isAmoledMode: Boolean,
+    isDynamicColor: Boolean,
     onAdjustFontSize: (Int) -> Unit,
     onResetFontSize: () -> Unit,
     onToggleMonospace: () -> Unit,
+    onToggleAmoledMode: () -> Unit,
+    onToggleDynamicColor: () -> Unit,
     onDismiss: () -> Unit
 ) {
     AlertDialog(
@@ -214,7 +218,7 @@ fun FontSettingsDialog(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Typography & Canvas",
+                    text = "Theme & Typography",
                     style = MaterialTheme.typography.titleMedium,
                     color = TextPrimary
                 )
@@ -271,14 +275,14 @@ fun FontSettingsDialog(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
                         Text(
                             text = "Monospace Typography",
                             style = MaterialTheme.typography.bodyMedium,
@@ -299,6 +303,75 @@ fun FontSettingsDialog(
                             uncheckedTrackColor = BorderSubtle
                         ),
                         modifier = Modifier.testTag("monospace_switch")
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // AMOLED Mode Row (Pure #000000 black canvas & surfaces for OLED screens)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text(
+                            text = "AMOLED Mode",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = "Pure #000000 pitch-black canvas for OLED displays",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextMuted
+                        )
+                    }
+                    Switch(
+                        checked = isAmoledMode,
+                        onCheckedChange = { onToggleAmoledMode() },
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = CanvasDark,
+                            checkedTrackColor = AccentCyan,
+                            uncheckedTrackColor = BorderSubtle
+                        ),
+                        modifier = Modifier.testTag("amoled_switch")
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // System Colors Row (Material You dynamic theming on Android 12+)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+                        Text(
+                            text = "Match System Colors",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                "Dynamic colors from system wallpaper and theme"
+                            } else {
+                                "Available on Android 12+"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextMuted
+                        )
+                    }
+                    Switch(
+                        checked = isDynamicColor,
+                        onCheckedChange = { onToggleDynamicColor() },
+                        enabled = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = CanvasDark,
+                            checkedTrackColor = AccentCyan,
+                            uncheckedTrackColor = BorderSubtle
+                        ),
+                        modifier = Modifier.testTag("dynamic_color_switch")
                     )
                 }
 

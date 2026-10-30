@@ -1,0 +1,6 @@
+{
+  "name": "DeskTerm",
+  "description": "Secure SSH client to connect to your desktop and run terminal commands with auto-connect.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
