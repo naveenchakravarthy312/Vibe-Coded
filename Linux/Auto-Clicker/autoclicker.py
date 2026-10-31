@@ -14,9 +14,11 @@ Design Aesthetic:
 - Crisp 2px-wide blinking cursor (1000ms cycle) and plain-text-only numeric pasting
 """
 
+from __future__ import annotations
+
 import ctypes
 import ctypes.util
-
+import glob
 import os
 import random
 import shutil
@@ -25,6 +27,7 @@ import threading
 import time
 import tkinter as tk
 import tkinter.font as tkfont
+from typing import Any, Literal, Mapping, Sequence
 
 # ---------------------------------------------------------------------------
 # Paths & Constants
@@ -133,19 +136,20 @@ class ClickerBackend:
         self._x11_display = None
         self._x11_lib = None
         self._xtst_lib = None
+        self._dotool_proc = None
         self._lock = threading.Lock()
         self._init_backends()
 
     def _init_backends(self):
         # 1. Try python-evdev UInput (Works natively on Wayland & X11)
         try:
-            from evdev import UInput, ecodes
+            from evdev import UInput, ecodes  # type: ignore[import-not-found,reportMissingImports]
 
-            cap = {
+            events: dict[int, Sequence[int]] = {
                 ecodes.EV_KEY: [BTN_LEFT, BTN_RIGHT, BTN_MIDDLE],
                 ecodes.EV_REL: [REL_X, REL_Y],
             }
-            self.uinput_dev = UInput(cap, name="AutoClicker-Virtual-Mouse")
+            self.uinput_dev = UInput(events, name="AutoClicker-Virtual-Mouse")  # type: ignore[arg-type]
             self.method = "uinput"
             return
         except Exception:
@@ -197,10 +201,10 @@ class ClickerBackend:
 
         def _worker():
             try:
-                import gi
+                import gi  # type: ignore[import-not-found,reportMissingImports]
 
                 gi.require_version("Gio", "2.0")
-                from gi.repository import Gio, GLib
+                from gi.repository import Gio, GLib  # type: ignore[attr-defined]
 
                 bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
                 portal = Gio.DBusProxy.new_sync(
@@ -326,7 +330,7 @@ class ClickerBackend:
         # 2. XDG Portal RemoteDesktop
         if self.portal_proxy is not None and self.portal_session is not None:
             try:
-                from gi.repository import Gio, GLib
+                from gi.repository import Gio, GLib  # type: ignore[attr-defined]
 
                 with self._lock:
                     self.portal_proxy.call_sync(
@@ -355,12 +359,20 @@ class ClickerBackend:
 
         if self.method == "dotool":
             do_btn = {"Left": "left", "Right": "right", "Middle": "middle"}.get(button_name, "left")
-            subprocess.run(
-                ["dotool"],
-                input=f"click {do_btn}\n".encode(),
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+            with self._lock:
+                try:
+                    if self._dotool_proc is None or self._dotool_proc.poll() is not None:
+                        self._dotool_proc = subprocess.Popen(
+                            ["dotool"],
+                            stdin=subprocess.PIPE,
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                        )
+                    if self._dotool_proc.stdin:
+                        self._dotool_proc.stdin.write(f"click {do_btn}\n".encode())
+                        self._dotool_proc.stdin.flush()
+                except Exception:
+                    self._dotool_proc = None
             return
 
         if self.method == "xdotool":
@@ -369,7 +381,7 @@ class ClickerBackend:
             return
 
         # 4. libXtst
-        if self._x11_display:
+        if self._x11_display and self._xtst_lib and self._x11_lib:
             x_btn = {"Left": 1, "Middle": 2, "Right": 3}.get(button_name, 1)
             with self._lock:
                 self._xtst_lib.XTestFakeButtonEvent(self._x11_display, x_btn, 1, 0)
@@ -382,6 +394,14 @@ class ClickerBackend:
                 self.uinput_dev.close()
             except Exception:
                 pass
+        if self._dotool_proc is not None:
+            try:
+                if self._dotool_proc.stdin:
+                    self._dotool_proc.stdin.close()
+                self._dotool_proc.terminate()
+            except Exception:
+                pass
+            self._dotool_proc = None
 
 
 class GlobalHotkeyListener:
@@ -413,7 +433,7 @@ class GlobalHotkeyListener:
     def _listen_loop(self):
         # Attempt 1: Linux evdev /dev/input/event* monitoring (works everywhere on Wayland)
         try:
-            import evdev
+            import evdev  # type: ignore[import-not-found,reportMissingImports]
             import select
 
             devices = []
@@ -423,7 +443,7 @@ class GlobalHotkeyListener:
                     caps = dev.capabilities()
                     if EV_KEY in caps:
                         key_caps = caps[EV_KEY]
-                        if KEYCODE_MAP["F6"] in key_caps or KEYCODE_MAP["F8"] in key_caps:
+                        if any(code in key_caps for code in KEYCODE_MAP.values()):
                             devices.append(dev)
                         else:
                             dev.close()
@@ -540,25 +560,35 @@ class AutoClickerApp:
         self.repeat_count_var = tk.StringVar(value="100")
         self.hotkey_name = "F6"
 
-        # Backends
-        self.backend = ClickerBackend()
-        self.hotkey_listener = GlobalHotkeyListener(
-            self.hotkey_name,
-            lambda: self.root.after(0, self.toggle_clicking),
-        )
-
-        # Build Zero-Chrome Interface
+        # Build Zero-Chrome Interface immediately so window renders instantly
         self._init_fonts()
         self._build_ui()
         self._apply_palette()
         self._bind_shortcuts_and_window_events()
 
-        if self.backend.uinput_dev is None and os.environ.get("XDG_SESSION_TYPE") == "wayland":
-            self.backend.setup_wayland_portal_session(
-                on_ready_callback=lambda _m: self.root.after(0, self._refresh_metadata)
-            )
+        # Initialize backends asynchronously in background thread so UI pops up in < 50ms
+        self.backend = None
+        self.hotkey_listener = None
+        self._init_backends_async()
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def _init_backends_async(self):
+        def _worker():
+            backend = ClickerBackend()
+            listener = GlobalHotkeyListener(
+                self.hotkey_name,
+                lambda: self.root.after(0, self.toggle_clicking),
+            )
+            self.backend = backend
+            self.hotkey_listener = listener
+            if backend.uinput_dev is None and os.environ.get("XDG_SESSION_TYPE") == "wayland":
+                backend.setup_wayland_portal_session(
+                    on_ready_callback=lambda _m: self.root.after(0, self._refresh_metadata)
+                )
+            self.root.after(0, self._refresh_metadata)
+
+        threading.Thread(target=_worker, daemon=True).start()
 
     def _load_window_icon(self):
         if os.path.exists(ICON_PATH) and os.path.getsize(ICON_PATH) > 0:
@@ -777,7 +807,7 @@ class AutoClickerApp:
         text: str,
         command,
         bold: bool = False,
-        pack_side=tk.LEFT,
+        pack_side: Literal["left", "right", "top", "bottom"] = "left",
     ) -> tk.Label:
         lbl = tk.Label(
             parent,
@@ -882,7 +912,8 @@ class AutoClickerApp:
         idx = (HOTKEY_CYCLE.index(self.hotkey_name) + 1) % len(HOTKEY_CYCLE)
         self.hotkey_name = HOTKEY_CYCLE[idx]
         self.lbl_hk_val.configure(text=self.hotkey_name)
-        self.hotkey_listener.set_hotkey(self.hotkey_name)
+        if self.hotkey_listener:
+            self.hotkey_listener.set_hotkey(self.hotkey_name)
         self._refresh_metadata()
 
     def _toggle_surface_theme(self):
@@ -1131,7 +1162,7 @@ class AutoClickerApp:
             self.root.bind(f"<{fk}>", self._on_local_hotkey)
 
     def _on_local_hotkey(self, event):
-        if event.keysym.upper() == self.hotkey_name.upper():
+        if event.keysym.upper() == self.hotkey_name.upper() and self.hotkey_listener is not None:
             self.hotkey_listener.trigger_debounced()
 
     # -----------------------------------------------------------------------
@@ -1211,7 +1242,8 @@ class AutoClickerApp:
         ui_last_update = 0.0
 
         while not self._stop_clicking_event.is_set():
-            self.backend.perform_click(button_name=button_name, double=is_double)
+            if self.backend:
+                self.backend.perform_click(button_name=button_name, double=is_double)
             self.click_count += 1
 
             now = time.perf_counter()
@@ -1231,8 +1263,14 @@ class AutoClickerApp:
             next_time += delay
             sleep_duration = next_time - time.perf_counter()
             if sleep_duration > 0:
-                if self._stop_clicking_event.wait(timeout=sleep_duration):
-                    break
+                # Coarse wait using event for intervals > 4ms
+                if sleep_duration > 0.004:
+                    if self._stop_clicking_event.wait(timeout=sleep_duration - 0.002):
+                        break
+                # Fine-grained microsecond spin for remainder
+                while time.perf_counter() < next_time:
+                    if self._stop_clicking_event.is_set():
+                        break
             else:
                 next_time = time.perf_counter()
 
@@ -1240,8 +1278,10 @@ class AutoClickerApp:
 
     def on_close(self):
         self.stop_clicking()
-        self.hotkey_listener.stop()
-        self.backend.close()
+        if self.hotkey_listener:
+            self.hotkey_listener.stop()
+        if self.backend:
+            self.backend.close()
         self.root.destroy()
 
 

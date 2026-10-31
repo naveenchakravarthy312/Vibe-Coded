@@ -21,9 +21,10 @@ from pathlib import Path
 import sqlite3
 import sys
 from dataclasses import dataclass
+from typing import Any
 
 try:
-    from PyQt6.QtCore import (
+    from PyQt6.QtCore import (  # type: ignore[import-not-found,reportMissingImports]
         QEvent,
         QMimeData,
         QPoint,
@@ -40,7 +41,7 @@ except ModuleNotFoundError:
         os.execv(str(_venv_python), [str(_venv_python), *sys.argv])
     raise
 
-from PyQt6.QtGui import (
+from PyQt6.QtGui import (  # type: ignore[import-not-found,reportMissingImports]
     QColor,
     QFont,
     QFontDatabase,
@@ -53,9 +54,10 @@ from PyQt6.QtGui import (
     QShortcut,
     QTextCharFormat,
     QTextCursor,
+    QTextDocument,
     QTextOption,
 )
-from PyQt6.QtWidgets import (
+from PyQt6.QtWidgets import (  # type: ignore[import-not-found,reportMissingImports]
     QApplication,
     QFileDialog,
     QFrame,
@@ -153,16 +155,15 @@ class ScratchpadRepository:
     def __init__(self, db_path: Path | None = None) -> None:
         self.db_path = db_path if db_path is not None else DB_PATH
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
+        self._conn.row_factory = sqlite3.Row
+        self._conn.execute("PRAGMA journal_mode=WAL;")
+        self._conn.execute("PRAGMA synchronous=NORMAL;")
         self._init_db()
 
-    def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self.db_path))
-        conn.row_factory = sqlite3.Row
-        return conn
-
     def _init_db(self) -> None:
-        with self._connect() as conn:
-            conn.execute(
+        with self._conn:
+            self._conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS notes (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -176,7 +177,7 @@ class ScratchpadRepository:
                 )
                 """
             )
-            conn.execute(
+            self._conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS preferences (
                     key TEXT PRIMARY KEY,
@@ -184,40 +185,44 @@ class ScratchpadRepository:
                 )
                 """
             )
-            conn.commit()
 
     def get_pref(self, key: str, default: str = "") -> str:
-        with self._connect() as conn:
-            row = conn.execute(
-                "SELECT value FROM preferences WHERE key = ?", (key,)
-            ).fetchone()
-            return str(row["value"]) if row else default
+        row = self._conn.execute(
+            "SELECT value FROM preferences WHERE key = ?", (key,)
+        ).fetchone()
+        return str(row["value"]) if row else default
 
     def set_pref(self, key: str, value: str) -> None:
-        with self._connect() as conn:
-            conn.execute(
+        with self._conn:
+            self._conn.execute(
                 "INSERT OR REPLACE INTO preferences (key, value) VALUES (?, ?)",
                 (key, str(value)),
             )
-            conn.commit()
+
+    def set_prefs(self, mapping: dict[str, str]) -> None:
+        """Batch update preferences in a single transaction."""
+        with self._conn:
+            self._conn.executemany(
+                "INSERT OR REPLACE INTO preferences (key, value) VALUES (?, ?)",
+                mapping.items(),
+            )
 
     def list_notes(self, search_query: str = "") -> list[SavedNote]:
         query = search_query.strip()
-        with self._connect() as conn:
-            if query:
-                like = f"%{query}%"
-                rows = conn.execute(
-                    """
-                    SELECT * FROM notes
-                    WHERE title LIKE ? OR content LIKE ?
-                    ORDER BY is_pinned DESC, updated_at DESC
-                    """,
-                    (like, like),
-                ).fetchall()
-            else:
-                rows = conn.execute(
-                    "SELECT * FROM notes ORDER BY is_pinned DESC, updated_at DESC"
-                ).fetchall()
+        if query:
+            like = f"%{query}%"
+            rows = self._conn.execute(
+                """
+                SELECT * FROM notes
+                WHERE title LIKE ? OR content LIKE ?
+                ORDER BY is_pinned DESC, updated_at DESC
+                """,
+                (like, like),
+            ).fetchall()
+        else:
+            rows = self._conn.execute(
+                "SELECT * FROM notes ORDER BY is_pinned DESC, updated_at DESC"
+            ).fetchall()
         return [
             SavedNote(
                 id=int(r["id"]),
@@ -233,22 +238,21 @@ class ScratchpadRepository:
         ]
 
     def get_note_by_id(self, note_id: int) -> SavedNote | None:
-        with self._connect() as conn:
-            r = conn.execute(
-                "SELECT * FROM notes WHERE id = ?", (note_id,)
-            ).fetchone()
-            if not r:
-                return None
-            return SavedNote(
-                id=int(r["id"]),
-                title=str(r["title"]),
-                content=str(r["content"]),
-                created_at=int(r["created_at"]),
-                updated_at=int(r["updated_at"]),
-                is_pinned=bool(r["is_pinned"]),
-                word_count=int(r["word_count"]),
-                char_count=int(r["char_count"]),
-            )
+        r = self._conn.execute(
+            "SELECT * FROM notes WHERE id = ?", (note_id,)
+        ).fetchone()
+        if not r:
+            return None
+        return SavedNote(
+            id=int(r["id"]),
+            title=str(r["title"]),
+            content=str(r["content"]),
+            created_at=int(r["created_at"]),
+            updated_at=int(r["updated_at"]),
+            is_pinned=bool(r["is_pinned"]),
+            word_count=int(r["word_count"]),
+            char_count=int(r["char_count"]),
+        )
 
     def upsert_note(
         self,
@@ -263,9 +267,9 @@ class ScratchpadRepository:
         chars = len(content)
         existing = self.get_note_by_id(note_id) if note_id is not None else None
 
-        with self._connect() as conn:
+        with self._conn:
             if existing is not None:
-                conn.execute(
+                self._conn.execute(
                     """
                     UPDATE notes
                     SET title = ?, content = ?, updated_at = ?, is_pinned = ?,
@@ -282,23 +286,21 @@ class ScratchpadRepository:
                         existing.id,
                     ),
                 )
-                conn.commit()
                 return existing.id
             else:
                 created = created_at if created_at is not None else now_ms
-                cur = conn.execute(
+                cur = self._conn.execute(
                     """
                     INSERT INTO notes (title, content, created_at, updated_at, is_pinned, word_count, char_count)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                     """,
                     (title, content, created, now_ms, int(is_pinned), words, chars),
                 )
-                conn.commit()
-                return int(cur.lastrowid)
+                return int(cur.lastrowid or 0)
 
     def restore_note(self, note: SavedNote) -> int:
-        with self._connect() as conn:
-            cur = conn.execute(
+        with self._conn:
+            cur = self._conn.execute(
                 """
                 INSERT OR REPLACE INTO notes (id, title, content, created_at, updated_at, is_pinned, word_count, char_count)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -314,21 +316,18 @@ class ScratchpadRepository:
                     note.char_count,
                 ),
             )
-            conn.commit()
             return int(cur.lastrowid or note.id)
 
     def toggle_pin(self, note: SavedNote) -> None:
-        with self._connect() as conn:
-            conn.execute(
+        with self._conn:
+            self._conn.execute(
                 "UPDATE notes SET is_pinned = ? WHERE id = ?",
                 (0 if note.is_pinned else 1, note.id),
             )
-            conn.commit()
 
     def delete_note(self, note_id: int) -> None:
-        with self._connect() as conn:
-            conn.execute("DELETE FROM notes WHERE id = ?", (note_id,))
-            conn.commit()
+        with self._conn:
+            self._conn.execute("DELETE FROM notes WHERE id = ?", (note_id,))
 
 
 # ---------------------------------------------------------------------------
@@ -411,36 +410,35 @@ def load_app_icon() -> QIcon:
     return QIcon(_render_placeholder_pixmap())
 
 
+_fonts_loaded = False
+
 def load_bundled_fonts() -> None:
-    """Load bundled JetBrains Mono and Roboto .ttf files if present in the workspace."""
-    candidate_dirs = [
-        APP_DIR / "fonts",
-        APP_DIR.parent.parent / "Android" / "scratchpad" / "app" / "src" / "main" / "res" / "font",
-        APP_DIR.parent / "Android" / "scratchpad" / "app" / "src" / "main" / "res" / "font",
-    ]
-    for folder in candidate_dirs:
-        if folder.is_dir():
-            for ttf in folder.glob("*.ttf"):
-                QFontDatabase.addApplicationFont(str(ttf))
+    """Load bundled TTF fonts asynchronously so window launch is instantaneous."""
+    global _fonts_loaded
+    if _fonts_loaded:
+        return
+    _fonts_loaded = True
+
+    def _worker():
+        candidate_dirs = [
+            APP_DIR / "fonts",
+            APP_DIR.parent.parent / "Android" / "scratchpad" / "app" / "src" / "main" / "res" / "font",
+        ]
+        for folder in candidate_dirs:
+            if folder.is_dir():
+                for ttf in folder.glob("*.ttf"):
+                    QFontDatabase.addApplicationFont(str(ttf))
+
+    import threading
+    threading.Thread(target=_worker, daemon=True).start()
 
 
 def select_font(size: int = DEFAULT_FONT_SIZE, is_monospace: bool = True) -> QFont:
-    """Pick the best available modern monospace or sans-serif font on the system."""
-    available = set(QFontDatabase.families())
+    """Pick the best modern monospace or sans-serif font stack without blocking on font db scan."""
     candidates = PREFERRED_MONO_FONTS if is_monospace else PREFERRED_SANS_FONTS
-    for family in candidates:
-        if family in available:
-            font = QFont(family, size)
-            break
-    else:
-        sys_type = (
-            QFontDatabase.SystemFont.FixedFont
-            if is_monospace
-            else QFontDatabase.SystemFont.GeneralFont
-        )
-        font = QFontDatabase.systemFont(sys_type)
-        font.setPointSize(size)
-
+    font = QFont()
+    font.setPointSize(size)
+    font.setFamilies(candidates)
     if is_monospace:
         font.setStyleHint(QFont.StyleHint.Monospace)
         font.setFixedPitch(True)
@@ -485,7 +483,9 @@ class EphemeralEditor(QPlainTextEdit):
 
         # 24px internal padding around all 4 edges of the text canvas
         self.setViewportMargins(PADDING_PX, PADDING_PX, PADDING_PX, PADDING_PX)
-        self.document().setDocumentMargin(0)
+        doc = self.document()
+        if doc is not None:
+            doc.setDocumentMargin(0)
 
         # Crisp 2px cursor and 4-space tab stop
         self.setCursorWidth(2)
@@ -496,8 +496,10 @@ class EphemeralEditor(QPlainTextEdit):
         metrics = QFontMetricsF(self.font())
         self.setTabStopDistance(metrics.horizontalAdvance(" ") * 4.0)
 
-    def insertFromMimeData(self, source: QMimeData) -> None:
+    def insertFromMimeData(self, source: QMimeData | None) -> None:
         """Always paste strictly as plain text (or open a dropped .txt/.md file)."""
+        if source is None:
+            return
         if source.hasUrls():
             for url in source.urls():
                 if url.isLocalFile():
@@ -510,19 +512,20 @@ class EphemeralEditor(QPlainTextEdit):
         else:
             super().insertFromMimeData(source)
 
-    def wheelEvent(self, event) -> None:
+    def wheelEvent(self, e: Any) -> None:
         """Support Ctrl + Mouse Wheel for dynamic font scaling."""
-        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-            delta = event.angleDelta().y()
+        if e.modifiers() & Qt.KeyboardModifier.ControlModifier:
+            delta = e.angleDelta().y()
             window = self.window()
-            if hasattr(window, "adjust_font_size"):
+            adjust = getattr(window, "adjust_font_size", None)
+            if callable(adjust):
                 if delta > 0:
-                    window.adjust_font_size(1)
+                    adjust(1)
                 elif delta < 0:
-                    window.adjust_font_size(-1)
-            event.accept()
+                    adjust(-1)
+            e.accept()
             return
-        super().wheelEvent(event)
+        super().wheelEvent(e)
 
 
 # ---------------------------------------------------------------------------
@@ -556,6 +559,7 @@ class SavedNotesView(QWidget):
         self._notes: list[SavedNote] = []
         self._selected_idx: int = 0
         self._active_note_id: int | None = None
+        self._row_labels: list[QLabel] = []
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(PADDING_PX, PADDING_PX, PADDING_PX, PADDING_PX)
@@ -578,18 +582,18 @@ class SavedNotesView(QWidget):
         layout.addLayout(search_row)
 
         # Notes rows container
-        self.scroll = QScrollArea()
-        self.scroll.setWidgetResizable(True)
-        self.scroll.setFrameShape(QFrame.Shape.NoFrame)
-        self.scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         self.rows_widget = QWidget()
         self.rows_layout = QVBoxLayout(self.rows_widget)
         self.rows_layout.setContentsMargins(0, 0, 0, 0)
         self.rows_layout.setSpacing(4)
-        self.scroll.setWidget(self.rows_widget)
-        layout.addWidget(self.scroll, 1)
+        self.scroll_area.setWidget(self.rows_widget)
+        layout.addWidget(self.scroll_area, 1)
 
         # Whisper-quiet footer hint in bottom-right (#585858)
         self.hint_label = QLabel(
@@ -611,32 +615,51 @@ class SavedNotesView(QWidget):
         self.refresh_list()
 
     def refresh_list(self) -> None:
-        while self.rows_layout.count():
-            item = self.rows_layout.takeAt(0)
-            if item.widget():
-                item.widget().deleteLater()
-
         self._notes = self.repo.list_notes(self.search_input.text())
+
         if not self._notes:
             self._selected_idx = 0
-            empty_lbl = QLabel("no saved notes")
-            empty_lbl.setObjectName("metaLabel")
-            empty_lbl.setFont(self.search_input.font())
-            self.rows_layout.addWidget(empty_lbl)
-            self.rows_layout.addStretch()
+            for lbl in self._row_labels:
+                lbl.hide()
+            if not hasattr(self, "_empty_lbl"):
+                self._empty_lbl = QLabel("no saved notes", self.rows_widget)
+                self._empty_lbl.setObjectName("metaLabel")
+                self.rows_layout.addWidget(self._empty_lbl)
+                self.rows_layout.addStretch()
+            self._empty_lbl.setFont(self.search_input.font())
+            self._empty_lbl.show()
             return
+
+        if hasattr(self, "_empty_lbl"):
+            self._empty_lbl.hide()
 
         self._selected_idx = max(0, min(self._selected_idx, len(self._notes) - 1))
         font = self.search_input.font()
         bold_font = QFont(font)
         bold_font.setBold(True)
 
+        # Allocate extra labels in pool if needed
+        while len(self._row_labels) < len(self._notes):
+            lbl = QLabel(self.rows_widget)
+            lbl.setCursor(Qt.CursorShape.PointingHandCursor)
+            # Insert before the trailing stretch if present
+            last_item = self.rows_layout.itemAt(self.rows_layout.count() - 1) if self.rows_layout.count() > 0 else None
+            if last_item is not None and last_item.spacerItem() is not None:
+                self.rows_layout.insertWidget(self.rows_layout.count() - 1, lbl)
+            else:
+                self.rows_layout.addWidget(lbl)
+            self._row_labels.append(lbl)
+
+        # Update and show active labels
         for idx, note in enumerate(self._notes):
             is_sel = idx == self._selected_idx
-            row_lbl = QLabel()
-            row_lbl.setCursor(Qt.CursorShape.PointingHandCursor)
+            row_lbl = self._row_labels[idx]
             row_lbl.setFont(bold_font if is_sel else font)
             row_lbl.setObjectName("activeRow" if is_sel else "metaRow")
+            lbl_style = row_lbl.style()
+            if lbl_style is not None:
+                lbl_style.unpolish(row_lbl)
+                lbl_style.polish(row_lbl)
 
             marker = "› " if is_sel else "  "
             pin_tag = "* " if note.is_pinned else ""
@@ -646,11 +669,17 @@ class SavedNotesView(QWidget):
                 preview = preview[:36] + "…"
             meta_str = f"{note.word_count}w · {format_timestamp(note.updated_at)}"
             row_lbl.setText(f"{title_col}  {preview:<38}  {meta_str}")
-
             row_lbl.mousePressEvent = lambda _e, n=note: self._on_select_note(n)  # type: ignore[method-assign]
-            self.rows_layout.addWidget(row_lbl)
+            row_lbl.show()
 
-        self.rows_layout.addStretch()
+        # Hide any unused pooled labels
+        for idx in range(len(self._notes), len(self._row_labels)):
+            self._row_labels[idx].hide()
+
+        # Ensure trailing stretch exists
+        last_item = self.rows_layout.itemAt(self.rows_layout.count() - 1) if self.rows_layout.count() > 0 else None
+        if self.rows_layout.count() == 0 or (last_item is not None and last_item.spacerItem() is None):
+            self.rows_layout.addStretch()
 
     def apply_theme_and_font(self, palette: dict[str, str], font: QFont, meta_font: QFont) -> None:
         self.lbl_search_key.setFont(font)
@@ -683,7 +712,8 @@ class SavedNotesView(QWidget):
         )
         self.refresh_list()
 
-    def eventFilter(self, watched, event) -> bool:
+    def eventFilter(self, a0: Any, a1: Any) -> bool:
+        watched, event = a0, a1
         if watched is self.search_input and event.type() == QEvent.Type.KeyPress:
             key = event.key()
             mods = event.modifiers()
@@ -852,7 +882,9 @@ class EphemeralPadWindow(QMainWindow):
         # Install event filters for Alt+drag and frameless edge drag/resize
         self.installEventFilter(self)
         self.editor.installEventFilter(self)
-        self.editor.viewport().installEventFilter(self)
+        viewport = self.editor.viewport()
+        if viewport is not None:
+            viewport.installEventFilter(self)
 
         # Load CLI file if passed, else restore draft if any
         if initial_file and Path(initial_file).is_file():
@@ -981,6 +1013,11 @@ class EphemeralPadWindow(QMainWindow):
         self._status_timer = QTimer(self)
         self._status_timer.setSingleShot(True)
         self._status_timer.timeout.connect(self._clear_transient_status)
+
+        # Debounced draft persistence timer (flushes to SQLite 750ms after typing pauses)
+        self._draft_timer = QTimer(self)
+        self._draft_timer.setSingleShot(True)
+        self._draft_timer.timeout.connect(self._flush_draft_state)
 
     # -----------------------------------------------------------------------
     # Palette & Typography (Matte Dark #141414 / Soft Light #f2f2f0)
@@ -1317,7 +1354,9 @@ class EphemeralPadWindow(QMainWindow):
     def new_scratchpad(self) -> None:
         self._suppress_modified = True
         self.editor.clear()
-        self.editor.document().clearUndoRedoStacks()
+        doc = self.editor.document()
+        if doc is not None:
+            doc.clearUndoRedoStacks()
         self._suppress_modified = False
 
         self._active_note_id = None
@@ -1340,7 +1379,9 @@ class EphemeralPadWindow(QMainWindow):
         self.show_status("cleared")
 
     def copy_all_text(self) -> None:
-        QApplication.clipboard().setText(self.editor.toPlainText())
+        clipboard = QApplication.clipboard()
+        if clipboard is not None:
+            clipboard.setText(self.editor.toPlainText())
         self.show_status("copied all")
 
     def insert_snippet(self, snippet: str) -> None:
@@ -1373,20 +1414,18 @@ class EphemeralPadWindow(QMainWindow):
 
     def _recompute_find_matches(self) -> None:
         query = self.find_input.text()
-        text = self.editor.toPlainText()
         self._find_matches.clear()
 
         if query:
-            q_low = query.lower()
-            t_low = text.lower()
-            start = 0
-            q_len = len(query)
-            while True:
-                idx = t_low.find(q_low, start)
-                if idx == -1:
-                    break
-                self._find_matches.append((idx, idx + q_len))
-                start = idx + max(1, q_len)
+            doc = self.editor.document()
+            if doc is not None:
+                pos = 0
+                while True:
+                    cursor = doc.find(query, pos)
+                    if cursor.isNull():
+                        break
+                    self._find_matches.append((cursor.selectionStart(), cursor.selectionEnd()))
+                    pos = cursor.selectionEnd()
 
         if self._find_matches:
             if self._current_match_idx < 0 or self._current_match_idx >= len(self._find_matches):
@@ -1477,19 +1516,27 @@ class EphemeralPadWindow(QMainWindow):
     def _on_editor_text_changed(self) -> None:
         if not self._suppress_modified:
             self._is_modified = True
-            self._save_draft_state()
+            # Debounce disk persistence to prevent fsync on every keystroke
+            self._draft_timer.start(750)
         if self._show_find_bar:
             self._recompute_find_matches()
         self._update_word_count()
 
     def _save_draft_state(self) -> None:
-        self.repo.set_pref("draft_text", self.editor.toPlainText())
-        self.repo.set_pref("draft_title", self._active_note_title)
-        self.repo.set_pref(
-            "draft_note_id",
-            str(self._active_note_id) if self._active_note_id is not None else "",
+        """Immediately schedule/flush draft persistence."""
+        self._draft_timer.stop()
+        self._flush_draft_state()
+
+    def _flush_draft_state(self) -> None:
+        """Flushes draft state to SQLite preferences in a single transaction."""
+        self.repo.set_prefs(
+            {
+                "draft_text": self.editor.toPlainText(),
+                "draft_title": self._active_note_title,
+                "draft_note_id": str(self._active_note_id) if self._active_note_id is not None else "",
+                "draft_modified": "1" if self._is_modified else "0",
+            }
         )
-        self.repo.set_pref("draft_modified", "1" if self._is_modified else "0")
 
     def show_status(self, msg: str) -> None:
         self._transient_status = msg
@@ -1505,16 +1552,22 @@ class EphemeralPadWindow(QMainWindow):
         self._update_word_count()
 
     def _update_word_count(self) -> None:
-        text = self.editor.toPlainText()
-        words = len(text.split()) if text.strip() else 0
-        chars = len(text)
-        lines = 1 if not text else text.count("\n") + 1
+        doc = self.editor.document()
+        # characterCount() includes end-of-block characters, max(0, -1) gives exact text length
+        chars = max(0, doc.characterCount() - 1) if doc is not None else 0
+        lines = max(1, doc.blockCount()) if doc is not None else 1
 
         if self._stat_display_mode == 0:
+            text = self.editor.toPlainText()
+            words = len(text.split()) if text.strip() else 0
             stats_part = "1 word" if words == 1 else f"{words} words"
         elif self._stat_display_mode == 1:
+            text = self.editor.toPlainText()
+            words = len(text.split()) if text.strip() else 0
             stats_part = f"{words} words · {chars} chars"
         else:
+            text = self.editor.toPlainText()
+            words = len(text.split()) if text.strip() else 0
             stats_part = f"{words}w · {chars}c · {lines}L · {self._font_size}pt"
 
         parts: list[str] = []
@@ -1547,12 +1600,12 @@ class EphemeralPadWindow(QMainWindow):
         y = max(0, self.editor.height() - self.word_count_label.height() - margin_bottom)
         self.word_count_label.move(x, y)
 
-    def resizeEvent(self, event) -> None:
-        super().resizeEvent(event)
+    def resizeEvent(self, a0: Any) -> None:
+        super().resizeEvent(a0)
         self._position_word_count()
 
-    def showEvent(self, event) -> None:
-        super().showEvent(event)
+    def showEvent(self, a0: Any) -> None:
+        super().showEvent(a0)
         self._position_word_count()
         self.editor.setFocus()
 
@@ -1680,7 +1733,8 @@ class EphemeralPadWindow(QMainWindow):
 
         return edges
 
-    def eventFilter(self, watched, event) -> bool:
+    def eventFilter(self, a0: Any, a1: Any) -> bool:
+        watched, event = a0, a1
         # Handle inline Find & Replace and Save prompt keyboard actions
         if event.type() == QEvent.Type.KeyPress:
             key = event.key()
@@ -1757,8 +1811,9 @@ class EphemeralPadWindow(QMainWindow):
 
     def _wipe_memory(self) -> None:
         doc = self.editor.document()
-        doc.clearUndoRedoStacks()
-        doc.clear()
+        if doc is not None:
+            doc.clearUndoRedoStacks()
+            doc.clear()
         self.editor.clear()
         gc.collect()
 
@@ -1768,7 +1823,8 @@ class EphemeralPadWindow(QMainWindow):
         self.close()
         QApplication.quit()
 
-    def closeEvent(self, event) -> None:
+    def closeEvent(self, a0: Any) -> None:
+        event = a0
         self._save_draft_state()
         self._wipe_memory()
         event.accept()

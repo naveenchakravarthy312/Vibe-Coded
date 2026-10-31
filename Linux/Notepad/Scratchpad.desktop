@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Scratchpad
+Comment=Ultra-minimalist, zero-chrome text and markdown scratchpad
+Exec=/usr/bin/env python3 /mnt/BA5EF38D5EF340A5/Antigravity/Vibe-Coding/Linux/Notepad/ephemeral_pad.py
+Path=/mnt/BA5EF38D5EF340A5/Antigravity/Vibe-Coding/Linux/Notepad
+Icon=/mnt/BA5EF38D5EF340A5/Antigravity/Vibe-Coding/Linux/Notepad/icon.png
+Terminal=false
+Categories=Utility;TextEditor;
+StartupWMClass=ephemeral_pad
