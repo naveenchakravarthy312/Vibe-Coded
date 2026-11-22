@@ -1,0 +1,809 @@
+{
+  "schema_version": 2,
+  "github_raw_url": "https://raw.githubusercontent.com/example/winfix/main/apps.json",
+  "apps": [
+    {
+      "id": "google-chrome",
+      "name": "Google Chrome",
+      "category": "Parent Essentials",
+      "method": "winget",
+      "winget_id": "Google.Chrome",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://www.google.com/chrome/",
+      "exe_name": "chrome.exe",
+      "supports_user_scope": true,
+      "arm64_native": true,
+      "description": "Fast, familiar web browser with automatic updates.",
+      "detect_paths": [
+        "%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe",
+        "%ProgramFiles(x86)%\\Google\\Chrome\\Application\\chrome.exe",
+        "%LocalAppData%\\Google\\Chrome\\Application\\chrome.exe"
+      ]
+    },
+    {
+      "id": "microsoft-edge",
+      "name": "Microsoft Edge",
+      "category": "Parent Essentials",
+      "method": "winget",
+      "winget_id": "Microsoft.Edge",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://www.microsoft.com/edge",
+      "exe_name": "msedge.exe",
+      "supports_user_scope": false,
+      "arm64_native": true,
+      "description": "Built-in Windows browser and WebView2 companion.",
+      "detect_paths": [
+        "%ProgramFiles(x86)%\\Microsoft\\Edge\\Application\\msedge.exe",
+        "%ProgramFiles%\\Microsoft\\Edge\\Application\\msedge.exe"
+      ]
+    },
+    {
+      "id": "mozilla-firefox",
+      "name": "Mozilla Firefox",
+      "category": "Parent Essentials",
+      "method": "winget",
+      "winget_id": "Mozilla.Firefox",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://www.mozilla.org/firefox/",
+      "exe_name": "firefox.exe",
+      "supports_user_scope": true,
+      "arm64_native": true,
+      "description": "Independent, privacy-respecting open-source web browser.",
+      "detect_paths": [
+        "%ProgramFiles%\\Mozilla Firefox\\firefox.exe",
+        "%ProgramFiles(x86)%\\Mozilla Firefox\\firefox.exe",
+        "%LocalAppData%\\Mozilla Firefox\\firefox.exe"
+      ]
+    },
+    {
+      "id": "brave-browser",
+      "name": "Brave Browser",
+      "category": "Parent Essentials",
+      "method": "winget",
+      "winget_id": "Brave.Brave",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://brave.com/",
+      "exe_name": "brave.exe",
+      "supports_user_scope": true,
+      "arm64_native": true,
+      "description": "Chromium browser with built-in ad and tracker blocking out of the box.",
+      "detect_paths": [
+        "%ProgramFiles%\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
+        "%ProgramFiles(x86)%\\BraveSoftware\\Brave-Browser\\Application\\brave.exe",
+        "%LocalAppData%\\BraveSoftware\\Brave-Browser\\Application\\brave.exe"
+      ]
+    },
+    {
+      "id": "oplus-connect",
+      "name": "O+ Connect",
+      "category": "Parent Essentials",
+      "method": "web_page",
+      "winget_id": null,
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://connect.oppo.com/",
+      "exe_name": "O+ Connect.exe",
+      "supports_user_scope": true,
+      "arm64_native": false,
+      "description": "OPPO / OnePlus phone-to-PC file transfer, clipboard sync, and screen mirroring (opens official download portal).",
+      "detect_paths": [
+        "%ProgramFiles%\\O+ Connect\\O+ Connect.exe",
+        "%ProgramFiles(x86)%\\O+ Connect\\O+ Connect.exe",
+        "%LocalAppData%\\Programs\\O+ Connect\\O+ Connect.exe",
+        "%LocalAppData%\\O+ Connect\\O+ Connect.exe",
+        "%ProgramFiles%\\OPPO\\O+ Connect\\O+ Connect.exe"
+      ]
+    },
+    {
+      "id": "kde-connect",
+      "name": "KDE Connect",
+      "category": "Parent Essentials",
+      "method": "winget",
+      "winget_id": "KDE.KDEConnect",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://kdeconnect.kde.org/",
+      "exe_name": "kdeconnect-indicator.exe",
+      "supports_user_scope": false,
+      "arm64_native": false,
+      "description": "Open-source phone-to-PC notifications, shared clipboard, and local file transfer.",
+      "detect_paths": [
+        "%ProgramFiles%\\KDE Connect\\bin\\kdeconnect-indicator.exe",
+        "%ProgramFiles(x86)%\\KDE Connect\\bin\\kdeconnect-indicator.exe"
+      ]
+    },
+    {
+      "id": "localsend",
+      "name": "LocalSend",
+      "category": "Parent Essentials",
+      "method": "winget",
+      "winget_id": "LocalSend.LocalSend",
+      "direct_url": null,
+      "portable_url": "https://github.com/localsend/localsend/releases/latest",
+      "web_url": "https://localsend.org/",
+      "exe_name": "localsend_app.exe",
+      "supports_user_scope": true,
+      "arm64_native": true,
+      "description": "Zero-cloud AirDrop alternative for instant file sharing over local Wi-Fi.",
+      "detect_paths": [
+        "%ProgramFiles%\\LocalSend\\localsend_app.exe",
+        "%LocalAppData%\\Programs\\LocalSend\\localsend_app.exe",
+        "%USERPROFILE%\\Apps\\LocalSend\\localsend_app.exe"
+      ]
+    },
+    {
+      "id": "vlc",
+      "name": "VLC Media Player",
+      "category": "Parent Essentials",
+      "method": "winget",
+      "winget_id": "VideoLAN.VLC",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://www.videolan.org/vlc/",
+      "exe_name": "vlc.exe",
+      "supports_user_scope": false,
+      "arm64_native": true,
+      "description": "Plays virtually any video or audio format reliably without extra codecs.",
+      "detect_paths": [
+        "%ProgramFiles%\\VideoLAN\\VLC\\vlc.exe",
+        "%ProgramFiles(x86)%\\VideoLAN\\VLC\\vlc.exe"
+      ]
+    },
+    {
+      "id": "7zip",
+      "name": "7-Zip",
+      "category": "Parent Essentials",
+      "method": "winget",
+      "winget_id": "7zip.7zip",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://www.7-zip.org/",
+      "exe_name": "7zFM.exe",
+      "supports_user_scope": false,
+      "arm64_native": true,
+      "description": "Lightweight archive manager for .zip, .7z, .tar, and .rar files.",
+      "detect_paths": [
+        "%ProgramFiles%\\7-Zip\\7zFM.exe",
+        "%ProgramFiles(x86)%\\7-Zip\\7zFM.exe"
+      ]
+    },
+    {
+      "id": "libreoffice",
+      "name": "LibreOffice",
+      "category": "Parent Essentials",
+      "method": "winget",
+      "winget_id": "TheDocumentFoundation.LibreOffice",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://www.libreoffice.org/",
+      "exe_name": "soffice.exe",
+      "supports_user_scope": false,
+      "arm64_native": true,
+      "description": "Free, offline office suite for Word, Excel, and PowerPoint documents.",
+      "detect_paths": [
+        "%ProgramFiles%\\LibreOffice\\program\\soffice.exe",
+        "%ProgramFiles(x86)%\\LibreOffice\\program\\soffice.exe"
+      ]
+    },
+    {
+      "id": "sumatrapdf",
+      "name": "SumatraPDF",
+      "category": "Parent Essentials",
+      "method": "winget",
+      "winget_id": "SumatraPDF.SumatraPDF",
+      "direct_url": null,
+      "portable_url": "https://www.sumatrapdfreader.org/download-free-pdf-viewer",
+      "web_url": "https://www.sumatrapdfreader.org/",
+      "exe_name": "SumatraPDF.exe",
+      "supports_user_scope": true,
+      "arm64_native": true,
+      "description": "Instant-opening, lightweight PDF, EPUB, and comic reader with zero bloat.",
+      "detect_paths": [
+        "%ProgramFiles%\\SumatraPDF\\SumatraPDF.exe",
+        "%LocalAppData%\\SumatraPDF\\SumatraPDF.exe",
+        "%USERPROFILE%\\Apps\\SumatraPDF\\SumatraPDF.exe"
+      ]
+    },
+    {
+      "id": "flow-launcher",
+      "name": "Flow Launcher",
+      "category": "Portable / Power Tools",
+      "method": "winget",
+      "winget_id": "Flow-Launcher.Flow-Launcher",
+      "direct_url": null,
+      "portable_url": "https://github.com/Flow-Launcher/Flow.Launcher/releases/latest/download/Flow-Launcher-Portable.zip",
+      "web_url": "https://www.flowlauncher.com/",
+      "exe_name": "Flow.Launcher.exe",
+      "supports_user_scope": true,
+      "arm64_native": true,
+      "description": "Fast keyboard launcher and Spotlight-style productivity tool (works without admin).",
+      "detect_paths": [
+        "%LocalAppData%\\FlowLauncher\\Flow.Launcher.exe",
+        "%USERPROFILE%\\Apps\\Flow Launcher\\Flow.Launcher.exe"
+      ]
+    },
+    {
+      "id": "altsnap",
+      "name": "AltSnap",
+      "category": "Portable / Power Tools",
+      "method": "winget",
+      "winget_id": "AltSnap.AltSnap",
+      "direct_url": "https://github.com/RamonUnch/AltSnap/releases/download/1.68/AltSnap1.68-x64-inst.exe",
+      "portable_url": "https://github.com/RamonUnch/AltSnap/releases/download/1.68/AltSnap1.68bin_x64.zip",
+      "web_url": "https://github.com/RamonUnch/AltSnap",
+      "exe_name": "AltSnap.exe",
+      "supports_user_scope": true,
+      "arm64_native": true,
+      "description": "Drag and resize any window anywhere with Alt + mouse (KDE-style window behavior).",
+      "detect_paths": [
+        "%USERPROFILE%\\Apps\\AltSnap\\AltSnap.exe",
+        "%LocalAppData%\\AltSnap\\AltSnap.exe",
+        "%ProgramFiles%\\AltSnap\\AltSnap.exe",
+        "%ProgramFiles(x86)%\\AltSnap\\AltSnap.exe"
+      ]
+    },
+    {
+      "id": "quicklook",
+      "name": "QuickLook",
+      "category": "Portable / Power Tools",
+      "method": "winget",
+      "winget_id": "QL-Win.QuickLook",
+      "direct_url": null,
+      "portable_url": "https://github.com/QL-Win/QuickLook/releases/latest",
+      "web_url": "https://github.com/QL-Win/QuickLook",
+      "exe_name": "QuickLook.exe",
+      "supports_user_scope": true,
+      "arm64_native": false,
+      "description": "Press Spacebar in File Explorer to preview files instantly like macOS.",
+      "detect_paths": [
+        "%LocalAppData%\\Programs\\QuickLook\\QuickLook.exe",
+        "%ProgramFiles%\\QuickLook\\QuickLook.exe",
+        "%ProgramFiles(x86)%\\QuickLook\\QuickLook.exe",
+        "%USERPROFILE%\\Apps\\QuickLook\\QuickLook.exe"
+      ]
+    },
+    {
+      "id": "zen-browser",
+      "name": "Zen Browser",
+      "category": "Portable / Power Tools",
+      "method": "winget",
+      "winget_id": "Zen-Team.Zen-Browser",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://zen-browser.app/",
+      "exe_name": "zen.exe",
+      "supports_user_scope": true,
+      "arm64_native": true,
+      "description": "Privacy-focused, vertical-tab Firefox-based browser.",
+      "detect_paths": [
+        "%ProgramFiles%\\Zen Browser\\zen.exe",
+        "%LocalAppData%\\Programs\\Zen Browser\\zen.exe",
+        "%LocalAppData%\\Zen Browser\\zen.exe",
+        "%USERPROFILE%\\Apps\\Zen Browser\\zen.exe"
+      ]
+    },
+    {
+      "id": "everything",
+      "name": "Everything Search",
+      "category": "Portable / Power Tools",
+      "method": "winget",
+      "winget_id": "voidtools.Everything",
+      "direct_url": null,
+      "portable_url": "https://www.voidtools.com/downloads/",
+      "web_url": "https://www.voidtools.com/",
+      "exe_name": "Everything.exe",
+      "supports_user_scope": false,
+      "arm64_native": true,
+      "description": "Instantaneous NTFS file and folder search engine (pairs natively with Flow Launcher).",
+      "detect_paths": [
+        "%ProgramFiles%\\Everything\\Everything.exe",
+        "%ProgramFiles(x86)%\\Everything\\Everything.exe",
+        "%USERPROFILE%\\Apps\\Everything\\Everything.exe"
+      ]
+    },
+    {
+      "id": "powertoys",
+      "name": "Microsoft PowerToys",
+      "category": "Portable / Power Tools",
+      "method": "winget",
+      "winget_id": "Microsoft.PowerToys",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://github.com/microsoft/PowerToys",
+      "exe_name": "PowerToys.exe",
+      "supports_user_scope": true,
+      "arm64_native": true,
+      "description": "Official Microsoft power-user suite (FancyZones, Color Picker, OCR Text Extractor, Awake).",
+      "detect_paths": [
+        "%ProgramFiles%\\PowerToys\\PowerToys.exe",
+        "%LocalAppData%\\PowerToys\\PowerToys.exe"
+      ]
+    },
+    {
+      "id": "sharex",
+      "name": "ShareX",
+      "category": "Portable / Power Tools",
+      "method": "winget",
+      "winget_id": "ShareX.ShareX",
+      "direct_url": null,
+      "portable_url": "https://github.com/ShareX/ShareX/releases/latest",
+      "web_url": "https://getsharex.com/",
+      "exe_name": "ShareX.exe",
+      "supports_user_scope": true,
+      "arm64_native": false,
+      "description": "Advanced screenshot, scrolling capture, screen recording, and OCR tool.",
+      "detect_paths": [
+        "%ProgramFiles%\\ShareX\\ShareX.exe",
+        "%LocalAppData%\\Programs\\ShareX\\ShareX.exe",
+        "%USERPROFILE%\\Apps\\ShareX\\ShareX.exe"
+      ]
+    },
+    {
+      "id": "eartrumpet",
+      "name": "EarTrumpet",
+      "category": "Portable / Power Tools",
+      "method": "winget",
+      "winget_id": "File-New-Project.EarTrumpet",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://eartrumpet.app/",
+      "exe_name": "EarTrumpet.exe",
+      "supports_user_scope": true,
+      "arm64_native": true,
+      "description": "Per-app volume mixer and quick audio output switcher in the system tray.",
+      "detect_paths": [
+        "%LocalAppData%\\Microsoft\\WindowsApps\\EarTrumpet.exe"
+      ]
+    },
+    {
+      "id": "wiztree",
+      "name": "WizTree",
+      "category": "Portable / Power Tools",
+      "method": "winget",
+      "winget_id": "AntibodySoftware.WizTree",
+      "direct_url": null,
+      "portable_url": "https://diskanalyzer.com/download",
+      "web_url": "https://diskanalyzer.com/",
+      "exe_name": "WizTree64.exe",
+      "supports_user_scope": false,
+      "arm64_native": false,
+      "description": "High-speed disk space analyzer that scans entire drives in seconds.",
+      "detect_paths": [
+        "%ProgramFiles%\\WizTree\\WizTree64.exe",
+        "%ProgramFiles(x86)%\\WizTree\\WizTree.exe",
+        "%USERPROFILE%\\Apps\\WizTree\\WizTree64.exe"
+      ]
+    },
+    {
+      "id": "nanazip",
+      "name": "NanaZip",
+      "category": "Portable / Power Tools",
+      "method": "winget",
+      "winget_id": "M2Team.NanaZip",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://github.com/M2Team/NanaZip",
+      "exe_name": "NanaZip.Modern.exe",
+      "supports_user_scope": true,
+      "arm64_native": true,
+      "description": "Modern Windows 11 fork of 7-Zip with native Windows 11 context menu integration.",
+      "detect_paths": [
+        "%LocalAppData%\\Microsoft\\WindowsApps\\NanaZip.exe"
+      ]
+    },
+    {
+      "id": "obs-studio",
+      "name": "OBS Studio",
+      "category": "Media & Creativity",
+      "method": "winget",
+      "winget_id": "OBSProject.OBSStudio",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://obsproject.com/",
+      "exe_name": "obs64.exe",
+      "supports_user_scope": false,
+      "arm64_native": true,
+      "description": "Free, open-source screen recording and live streaming studio.",
+      "detect_paths": [
+        "%ProgramFiles%\\obs-studio\\bin\\64bit\\obs64.exe"
+      ]
+    },
+    {
+      "id": "handbrake",
+      "name": "HandBrake",
+      "category": "Media & Creativity",
+      "method": "winget",
+      "winget_id": "HandBrake.HandBrake",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://handbrake.fr/",
+      "exe_name": "HandBrake.exe",
+      "supports_user_scope": false,
+      "arm64_native": true,
+      "description": "Open-source video transcoder for shrinking large videos for email or phone transfer.",
+      "detect_paths": [
+        "%ProgramFiles%\\HandBrake\\HandBrake.exe"
+      ]
+    },
+    {
+      "id": "gimp",
+      "name": "GIMP",
+      "category": "Media & Creativity",
+      "method": "winget",
+      "winget_id": "GIMP.GIMP",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://www.gimp.org/",
+      "exe_name": "gimp-3.exe",
+      "supports_user_scope": true,
+      "arm64_native": true,
+      "description": "Full-featured open-source image editor and photo retouching tool.",
+      "detect_paths": [
+        "%ProgramFiles%\\GIMP 3\\bin\\gimp-3.exe",
+        "%ProgramFiles%\\GIMP 2\\bin\\gimp-2.10.exe",
+        "%LocalAppData%\\Programs\\GIMP 3\\bin\\gimp-3.exe"
+      ]
+    },
+    {
+      "id": "imageglass",
+      "name": "ImageGlass",
+      "category": "Media & Creativity",
+      "method": "winget",
+      "winget_id": "DuongDieuPhap.ImageGlass",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://imageglass.org/",
+      "exe_name": "ImageGlass.exe",
+      "supports_user_scope": false,
+      "arm64_native": true,
+      "description": "Fast, lightweight image viewer supporting WebP, HEIC, RAW, SVG, and GIF.",
+      "detect_paths": [
+        "%ProgramFiles%\\ImageGlass\\ImageGlass.exe"
+      ]
+    },
+    {
+      "id": "audacity",
+      "name": "Audacity",
+      "category": "Media & Creativity",
+      "method": "winget",
+      "winget_id": "Audacity.Audacity",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://www.audacityteam.org/",
+      "exe_name": "Audacity.exe",
+      "supports_user_scope": false,
+      "arm64_native": false,
+      "description": "Free, open-source multi-track audio recorder and editor.",
+      "detect_paths": [
+        "%ProgramFiles%\\Audacity\\Audacity.exe",
+        "%ProgramFiles(x86)%\\Audacity\\Audacity.exe"
+      ]
+    },
+    {
+      "id": "moonlight",
+      "name": "Moonlight Game Streaming",
+      "category": "Media & Creativity",
+      "method": "winget",
+      "winget_id": "MoonlightGameStreamingProject.Moonlight",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://moonlight-stream.org/",
+      "exe_name": "Moonlight.exe",
+      "supports_user_scope": false,
+      "arm64_native": true,
+      "description": "Low-latency desktop and game streaming client for Sunshine hosts.",
+      "detect_paths": [
+        "%ProgramFiles%\\Moonlight Game Streaming\\Moonlight.exe"
+      ]
+    },
+    {
+      "id": "bitwarden",
+      "name": "Bitwarden",
+      "category": "Security & Remote Support",
+      "method": "winget",
+      "winget_id": "Bitwarden.Bitwarden",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://bitwarden.com/",
+      "exe_name": "Bitwarden.exe",
+      "supports_user_scope": true,
+      "arm64_native": true,
+      "description": "Open-source cross-platform password manager and passkey vault.",
+      "detect_paths": [
+        "%ProgramFiles%\\Bitwarden\\Bitwarden.exe",
+        "%LocalAppData%\\Programs\\Bitwarden\\Bitwarden.exe"
+      ]
+    },
+    {
+      "id": "keepassxc",
+      "name": "KeePassXC",
+      "category": "Security & Remote Support",
+      "method": "winget",
+      "winget_id": "KeePassXCTeam.KeePassXC",
+      "direct_url": null,
+      "portable_url": "https://keepassxc.org/download/",
+      "web_url": "https://keepassxc.org/",
+      "exe_name": "KeePassXC.exe",
+      "supports_user_scope": false,
+      "arm64_native": true,
+      "description": "Offline, local-file encrypted password database manager.",
+      "detect_paths": [
+        "%ProgramFiles%\\KeePassXC\\KeePassXC.exe",
+        "%USERPROFILE%\\Apps\\KeePassXC\\KeePassXC.exe"
+      ]
+    },
+    {
+      "id": "anydesk",
+      "name": "AnyDesk",
+      "category": "Security & Remote Support",
+      "method": "winget",
+      "winget_id": "AnyDesk.AnyDesk",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://anydesk.com/",
+      "exe_name": "AnyDesk.exe",
+      "supports_user_scope": false,
+      "arm64_native": false,
+      "description": "Fast remote desktop support client for helping family PCs.",
+      "detect_paths": [
+        "%ProgramFiles(x86)%\\AnyDesk\\AnyDesk.exe",
+        "%ProgramFiles%\\AnyDesk\\AnyDesk.exe"
+      ]
+    },
+    {
+      "id": "rustdesk",
+      "name": "RustDesk",
+      "category": "Security & Remote Support",
+      "method": "web_page",
+      "winget_id": null,
+      "direct_url": null,
+      "portable_url": "https://github.com/rustdesk/rustdesk/releases/latest",
+      "web_url": "https://github.com/rustdesk/rustdesk/releases/latest",
+      "exe_name": "rustdesk.exe",
+      "supports_user_scope": true,
+      "arm64_native": true,
+      "description": "Open-source self-hostable remote desktop (installed via GitHub Releases; removed from WinGet in May 2026).",
+      "detect_paths": [
+        "%ProgramFiles%\\RustDesk\\rustdesk.exe",
+        "%USERPROFILE%\\Apps\\RustDesk\\rustdesk.exe"
+      ]
+    },
+    {
+      "id": "crystaldiskinfo",
+      "name": "CrystalDiskInfo",
+      "category": "Diagnostics & Admin Tools",
+      "method": "winget",
+      "winget_id": "CrystalDewWorld.CrystalDiskInfo",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://crystalmark.info/en/software/crystaldiskinfo/",
+      "exe_name": "DiskInfo64.exe",
+      "supports_user_scope": false,
+      "arm64_native": true,
+      "description": "Checks SSD/HDD S.M.A.R.T. health, wear level, and drive temperatures.",
+      "detect_paths": [
+        "%ProgramFiles%\\CrystalDiskInfo\\DiskInfo64.exe",
+        "%ProgramFiles%\\CrystalDiskInfo\\DiskInfoA64.exe",
+        "%ProgramFiles(x86)%\\CrystalDiskInfo\\DiskInfo64.exe"
+      ]
+    },
+    {
+      "id": "hwinfo",
+      "name": "HWiNFO",
+      "category": "Diagnostics & Admin Tools",
+      "method": "winget",
+      "winget_id": "REALiX.HWiNFO",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://www.hwinfo.com/",
+      "exe_name": "HWiNFO64.exe",
+      "supports_user_scope": false,
+      "arm64_native": true,
+      "description": "Comprehensive hardware inventory, sensor monitoring, and thermal diagnostics.",
+      "detect_paths": [
+        "%ProgramFiles%\\HWiNFO64\\HWiNFO64.exe"
+      ]
+    },
+    {
+      "id": "cpuz",
+      "name": "CPU-Z",
+      "category": "Diagnostics & Admin Tools",
+      "method": "winget",
+      "winget_id": "CPUID.CPU-Z",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://www.cpuid.com/softwares/cpu-z.html",
+      "exe_name": "cpuz.exe",
+      "supports_user_scope": false,
+      "arm64_native": true,
+      "description": "Detailed processor, motherboard, chipset, and RAM SPD hardware specs.",
+      "detect_paths": [
+        "%ProgramFiles%\\CPUID\\CPU-Z\\cpuz.exe"
+      ]
+    },
+    {
+      "id": "bleachbit",
+      "name": "BleachBit",
+      "category": "Diagnostics & Admin Tools",
+      "method": "winget",
+      "winget_id": "BleachBit.BleachBit",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://www.bleachbit.org/",
+      "exe_name": "bleachbit.exe",
+      "supports_user_scope": true,
+      "arm64_native": false,
+      "description": "Open-source disk space and browser/system cache cleaner.",
+      "detect_paths": [
+        "%ProgramFiles(x86)%\\BleachBit\\bleachbit.exe",
+        "%ProgramFiles%\\BleachBit\\bleachbit.exe",
+        "%LocalAppData%\\BleachBit\\bleachbit.exe"
+      ]
+    },
+    {
+      "id": "rufus",
+      "name": "Rufus",
+      "category": "Diagnostics & Admin Tools",
+      "method": "winget",
+      "winget_id": "Rufus.Rufus",
+      "direct_url": null,
+      "portable_url": "https://rufus.ie/",
+      "web_url": "https://rufus.ie/",
+      "exe_name": "rufus.exe",
+      "supports_user_scope": true,
+      "arm64_native": true,
+      "description": "Create bootable Windows and Linux USB installation drives.",
+      "detect_paths": [
+        "%LocalAppData%\\Microsoft\\WinGet\\Links\\rufus.exe",
+        "%USERPROFILE%\\Apps\\Rufus\\rufus.exe"
+      ]
+    },
+    {
+      "id": "edge-webview2",
+      "name": "Microsoft Edge WebView2 Runtime",
+      "category": "Dev & Runtimes",
+      "method": "winget",
+      "winget_id": "Microsoft.EdgeWebView2Runtime",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://developer.microsoft.com/microsoft-edge/webview2/",
+      "exe_name": "msedgewebview2.exe",
+      "supports_user_scope": false,
+      "arm64_native": true,
+      "description": "Required embedded web runtime for O+ Connect, PowerToys, and modern Windows apps.",
+      "detect_paths": [
+        "%ProgramFiles(x86)%\\Microsoft\\EdgeWebView\\Application\\msedgewebview2.exe",
+        "%ProgramFiles%\\Microsoft\\EdgeWebView\\Application\\msedgewebview2.exe"
+      ]
+    },
+    {
+      "id": "windows-terminal",
+      "name": "Windows Terminal",
+      "category": "Dev & Runtimes",
+      "method": "winget",
+      "winget_id": "Microsoft.WindowsTerminal",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://github.com/microsoft/terminal",
+      "exe_name": "wt.exe",
+      "supports_user_scope": true,
+      "arm64_native": true,
+      "description": "Modern tabbed terminal for PowerShell, CMD, WSL, and SSH.",
+      "detect_paths": [
+        "%LocalAppData%\\Microsoft\\WindowsApps\\wt.exe"
+      ]
+    },
+    {
+      "id": "powershell-7",
+      "name": "PowerShell 7",
+      "category": "Dev & Runtimes",
+      "method": "winget",
+      "winget_id": "Microsoft.PowerShell",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://github.com/PowerShell/PowerShell",
+      "exe_name": "pwsh.exe",
+      "supports_user_scope": false,
+      "arm64_native": true,
+      "description": "Modern cross-platform PowerShell runtime (pwsh.exe).",
+      "detect_paths": [
+        "%ProgramFiles%\\PowerShell\\7\\pwsh.exe"
+      ]
+    },
+    {
+      "id": "git",
+      "name": "Git for Windows",
+      "category": "Dev & Runtimes",
+      "method": "winget",
+      "winget_id": "Git.Git",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://git-scm.com/download/win",
+      "exe_name": "git.exe",
+      "supports_user_scope": true,
+      "arm64_native": true,
+      "description": "Git version control plus Git Bash (bash.exe) for POSIX shell scripts on Windows.",
+      "detect_paths": [
+        "%ProgramFiles%\\Git\\cmd\\git.exe",
+        "%LocalAppData%\\Programs\\Git\\cmd\\git.exe"
+      ]
+    },
+    {
+      "id": "vscode",
+      "name": "Visual Studio Code",
+      "category": "Dev & Runtimes",
+      "method": "winget",
+      "winget_id": "Microsoft.VisualStudioCode",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://code.visualstudio.com/",
+      "exe_name": "Code.exe",
+      "supports_user_scope": true,
+      "arm64_native": true,
+      "description": "User-scope code editor that installs cleanly without administrator rights.",
+      "detect_paths": [
+        "%LocalAppData%\\Programs\\Microsoft VS Code\\Code.exe",
+        "%ProgramFiles%\\Microsoft VS Code\\Code.exe"
+      ]
+    },
+    {
+      "id": "python-312",
+      "name": "Python 3.12",
+      "category": "Dev & Runtimes",
+      "method": "winget",
+      "winget_id": "Python.Python.3.12",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://www.python.org/",
+      "exe_name": "python.exe",
+      "supports_user_scope": true,
+      "arm64_native": true,
+      "description": "Python 3.12 runtime and pip package manager.",
+      "detect_paths": [
+        "%LocalAppData%\\Programs\\Python\\Python312\\python.exe",
+        "%ProgramFiles%\\Python312\\python.exe"
+      ]
+    },
+    {
+      "id": "notepadplusplus",
+      "name": "Notepad++",
+      "category": "Dev & Runtimes",
+      "method": "winget",
+      "winget_id": "Notepad++.Notepad++",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://notepad-plus-plus.org/",
+      "exe_name": "notepad++.exe",
+      "supports_user_scope": false,
+      "arm64_native": true,
+      "description": "Fast, lightweight text and source code editor.",
+      "detect_paths": [
+        "%ProgramFiles%\\Notepad++\\notepad++.exe",
+        "%ProgramFiles(x86)%\\Notepad++\\notepad++.exe"
+      ]
+    },
+    {
+      "id": "obsidian",
+      "name": "Obsidian",
+      "category": "Dev & Runtimes",
+      "method": "winget",
+      "winget_id": "Obsidian.Obsidian",
+      "direct_url": null,
+      "portable_url": null,
+      "web_url": "https://obsidian.md/",
+      "exe_name": "Obsidian.exe",
+      "supports_user_scope": true,
+      "arm64_native": true,
+      "description": "Local-first Markdown knowledge base and note editor.",
+      "detect_paths": [
+        "%LocalAppData%\\Programs\\Obsidian\\Obsidian.exe",
+        "%LocalAppData%\\Obsidian\\Obsidian.exe",
+        "%ProgramFiles%\\Obsidian\\Obsidian.exe"
+      ]
+    }
+  ]
+}

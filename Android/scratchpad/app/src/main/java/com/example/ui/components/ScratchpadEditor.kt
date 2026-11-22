@@ -5,12 +5,13 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,19 +28,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
@@ -49,11 +47,11 @@ import com.example.ui.ScratchpadUiState
 import com.example.ui.theme.AccentCyan
 import com.example.ui.theme.CanvasDark
 import com.example.ui.theme.ScratchpadMonoFontFamily
-import com.example.ui.theme.ScratchpadSansFontFamily
 import com.example.ui.theme.SurfaceVariantDark
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import kotlin.math.abs
 
 @Composable
 fun ScratchpadEditor(
@@ -67,7 +65,7 @@ fun ScratchpadEditor(
     var statDisplayMode by remember { mutableIntStateOf(0) } // 0: words, 1: words + chars, 2: all details
     var zoomAccumulator by remember { mutableFloatStateOf(1f) }
 
-    val editorFontFamily = if (uiState.isMonospace) ScratchpadMonoFontFamily else ScratchpadSansFontFamily
+    val editorFontFamily = ScratchpadMonoFontFamily
     val currentFontSize = uiState.fontSizeSp.sp
     val currentLineHeight = (uiState.fontSizeSp * 1.5).sp
 
@@ -76,15 +74,27 @@ fun ScratchpadEditor(
             .fillMaxSize()
             .background(CanvasDark)
             .pointerInput(Unit) {
-                detectTransformGestures { _, _, zoom, _ ->
-                    zoomAccumulator *= zoom
-                    if (zoomAccumulator > 1.25f) {
-                        onZoomFont(1)
-                        zoomAccumulator = 1f
-                    } else if (zoomAccumulator < 0.8f) {
-                        onZoomFont(-1)
-                        zoomAccumulator = 1f
-                    }
+                awaitEachGesture {
+                    awaitFirstDown(requireUnconsumed = false)
+                    zoomAccumulator = 1f
+                    do {
+                        val event = awaitPointerEvent()
+                        val pressedCount = event.changes.count { it.pressed }
+                        if (pressedCount >= 2) {
+                            val zoom = event.calculateZoom()
+                            if (abs(zoom - 1f) > 0.01f) {
+                                zoomAccumulator *= zoom
+                                if (zoomAccumulator > 1.25f) {
+                                    onZoomFont(1)
+                                    zoomAccumulator = 1f
+                                } else if (zoomAccumulator < 0.8f) {
+                                    onZoomFont(-1)
+                                    zoomAccumulator = 1f
+                                }
+                                event.changes.forEach { it.consume() }
+                            }
+                        }
+                    } while (event.changes.any { it.pressed })
                 }
             }
     ) {

@@ -56,6 +56,7 @@ fun ConverterScreen(
 
     var showFromPicker by remember { mutableStateOf(false) }
     var showToPicker by remember { mutableStateOf(false) }
+    var showAllUnitsSheet by remember { mutableStateOf(false) }
 
     val categoryScrollState = rememberScrollState()
 
@@ -63,7 +64,8 @@ fun ConverterScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(top = 8.dp)
+            .padding(top = 8.dp, bottom = 8.dp),
+        verticalArrangement = Arrangement.SpaceBetween
     ) {
         // ----------------------------------------------------
         // CATEGORY PICKER HORIZONTAL BAR
@@ -174,7 +176,7 @@ fun ConverterScreen(
                         .testTag("converter_input_display")
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Divider with Swap button centered
                 Box(
@@ -202,7 +204,7 @@ fun ConverterScreen(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // "To" Section
                 Row(
@@ -255,10 +257,10 @@ fun ConverterScreen(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Action buttons: Copy, Save to History, Push to Calc
+                // Action buttons: Copy, Save, All Units, Push to Calc
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     OutlinedButton(
                         onClick = {
@@ -267,10 +269,10 @@ fun ConverterScreen(
                             clipboard.setPrimaryClip(clip)
                             Toast.makeText(context, "Copied to clipboard", Toast.LENGTH_SHORT).show()
                         },
-                        modifier = Modifier.weight(1f).height(38.dp).testTag("copy_conversion_button"),
-                        contentPadding = PaddingValues(horizontal = 8.dp)
+                        modifier = Modifier.weight(1f).height(36.dp).testTag("copy_conversion_button"),
+                        contentPadding = PaddingValues(horizontal = 6.dp)
                     ) {
-                        Icon(Icons.Outlined.ContentCopy, contentDescription = "Copy", modifier = Modifier.size(16.dp))
+                        Icon(Icons.Outlined.ContentCopy, contentDescription = "Copy", modifier = Modifier.size(15.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Copy", style = MaterialTheme.typography.labelMedium)
                     }
@@ -280,22 +282,32 @@ fun ConverterScreen(
                             viewModel.saveConversionToHistory()
                             Toast.makeText(context, "Saved to History log", Toast.LENGTH_SHORT).show()
                         },
-                        modifier = Modifier.weight(1f).height(38.dp).testTag("save_conversion_button"),
-                        contentPadding = PaddingValues(horizontal = 8.dp)
+                        modifier = Modifier.weight(1f).height(36.dp).testTag("save_conversion_button"),
+                        contentPadding = PaddingValues(horizontal = 6.dp)
                     ) {
-                        Icon(Icons.Outlined.BookmarkBorder, contentDescription = "Save", modifier = Modifier.size(16.dp))
+                        Icon(Icons.Outlined.BookmarkBorder, contentDescription = "Save", modifier = Modifier.size(15.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("Save", style = MaterialTheme.typography.labelMedium)
+                    }
+
+                    OutlinedButton(
+                        onClick = { showAllUnitsSheet = true },
+                        modifier = Modifier.weight(1.15f).height(36.dp).testTag("all_units_button"),
+                        contentPadding = PaddingValues(horizontal = 6.dp)
+                    ) {
+                        Icon(Icons.Default.FormatListBulleted, contentDescription = "All Units", modifier = Modifier.size(15.dp))
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("All (${quickComparisons.size})", style = MaterialTheme.typography.labelMedium)
                     }
 
                     Button(
                         onClick = {
                             viewModel.pushConvertedToCalculator(convertedOutput)
                         },
-                        modifier = Modifier.weight(1.2f).height(38.dp).testTag("push_to_calc_button"),
-                        contentPadding = PaddingValues(horizontal = 8.dp)
+                        modifier = Modifier.weight(1.15f).height(36.dp).testTag("push_to_calc_button"),
+                        contentPadding = PaddingValues(horizontal = 6.dp)
                     ) {
-                        Icon(Icons.Default.Calculate, contentDescription = "To Calc", modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Calculate, contentDescription = "To Calc", modifier = Modifier.size(15.dp))
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("To Calc", style = MaterialTheme.typography.labelMedium)
                     }
@@ -306,150 +318,136 @@ fun ConverterScreen(
         Spacer(modifier = Modifier.height(8.dp))
 
         // ----------------------------------------------------
-        // NUMERIC KEYPAD & QUICK COMPARISONS
+        // FULL-WIDTH NUMERIC KEYPAD
         // ----------------------------------------------------
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
                 .padding(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Numeric Keypad for unit entry
-            Column(
-                modifier = Modifier
-                    .weight(1.2f)
-                    .fillMaxHeight(),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
+            val numBg = MaterialTheme.colorScheme.surfaceVariant
+            val numColor = MaterialTheme.colorScheme.onSurface
+
+            // Row 1: 7, 8, 9, C
+            Row(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                val numBg = MaterialTheme.colorScheme.surfaceVariant
-                val numColor = MaterialTheme.colorScheme.onSurface
-                val keyHeight = 44.dp
-
-                // Row 1: 7, 8, 9, C
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    CalcKeyButton("7", { viewModel.onConverterKey("7") }, Modifier.weight(1f).height(keyHeight), numBg, numColor, fontSize = 18)
-                    CalcKeyButton("8", { viewModel.onConverterKey("8") }, Modifier.weight(1f).height(keyHeight), numBg, numColor, fontSize = 18)
-                    CalcKeyButton("9", { viewModel.onConverterKey("9") }, Modifier.weight(1f).height(keyHeight), numBg, numColor, fontSize = 18)
-                    CalcKeyButton(
-                        "C", { viewModel.onConverterKey("CLEAR") },
-                        Modifier.weight(1f).height(keyHeight),
-                        MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.7f),
-                        MaterialTheme.colorScheme.error,
-                        fontSize = 16,
-                        testTag = "conv_key_clear"
-                    )
-                }
-
-                // Row 2: 4, 5, 6, ⌫
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    CalcKeyButton("4", { viewModel.onConverterKey("4") }, Modifier.weight(1f).height(keyHeight), numBg, numColor, fontSize = 18)
-                    CalcKeyButton("5", { viewModel.onConverterKey("5") }, Modifier.weight(1f).height(keyHeight), numBg, numColor, fontSize = 18)
-                    CalcKeyButton("6", { viewModel.onConverterKey("6") }, Modifier.weight(1f).height(keyHeight), numBg, numColor, fontSize = 18)
-                    CalcKeyButton(
-                        "⌫", { viewModel.onConverterKey("BACKSPACE") },
-                        Modifier.weight(1f).height(keyHeight),
-                        MaterialTheme.colorScheme.surfaceVariant,
-                        MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 16,
-                        testTag = "conv_key_backspace"
-                    )
-                }
-
-                // Row 3: 1, 2, 3, ±
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    CalcKeyButton("1", { viewModel.onConverterKey("1") }, Modifier.weight(1f).height(keyHeight), numBg, numColor, fontSize = 18)
-                    CalcKeyButton("2", { viewModel.onConverterKey("2") }, Modifier.weight(1f).height(keyHeight), numBg, numColor, fontSize = 18)
-                    CalcKeyButton("3", { viewModel.onConverterKey("3") }, Modifier.weight(1f).height(keyHeight), numBg, numColor, fontSize = 18)
-                    CalcKeyButton("±", { viewModel.onConverterKey("+/-") }, Modifier.weight(1f).height(keyHeight), numBg, numColor, fontSize = 18)
-                }
-
-                // Row 4: 0, .
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    CalcKeyButton("0", { viewModel.onConverterKey("0") }, Modifier.weight(2f).height(keyHeight), numBg, numColor, fontSize = 18)
-                    CalcKeyButton(".", { viewModel.onConverterKey(".") }, Modifier.weight(1f).height(keyHeight), numBg, numColor, fontSize = 18)
-                    CalcKeyButton("⇄", { viewModel.swapUnits() }, Modifier.weight(1f).height(keyHeight), MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.primary, fontSize = 18)
-                }
+                CalcKeyButton("7", { viewModel.onConverterKey("7") }, Modifier.weight(1f).fillMaxHeight(), numBg, numColor, fontSize = 20)
+                CalcKeyButton("8", { viewModel.onConverterKey("8") }, Modifier.weight(1f).fillMaxHeight(), numBg, numColor, fontSize = 20)
+                CalcKeyButton("9", { viewModel.onConverterKey("9") }, Modifier.weight(1f).fillMaxHeight(), numBg, numColor, fontSize = 20)
+                CalcKeyButton(
+                    "C", { viewModel.onConverterKey("CLEAR") },
+                    Modifier.weight(1f).fillMaxHeight(),
+                    MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.8f),
+                    MaterialTheme.colorScheme.error,
+                    fontSize = 18,
+                    testTag = "conv_key_clear"
+                )
             }
 
-            // Quick Reference List (Converts to all other units in real-time)
-            Card(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = RoundedCornerShape(16.dp)
+            // Row 2: 4, 5, 6, ⌫
+            Row(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(10.dp)
+                CalcKeyButton("4", { viewModel.onConverterKey("4") }, Modifier.weight(1f).fillMaxHeight(), numBg, numColor, fontSize = 20)
+                CalcKeyButton("5", { viewModel.onConverterKey("5") }, Modifier.weight(1f).fillMaxHeight(), numBg, numColor, fontSize = 20)
+                CalcKeyButton("6", { viewModel.onConverterKey("6") }, Modifier.weight(1f).fillMaxHeight(), numBg, numColor, fontSize = 20)
+                CalcKeyButton(
+                    "⌫", { viewModel.onConverterKey("BACKSPACE") },
+                    Modifier.weight(1f).fillMaxHeight(),
+                    MaterialTheme.colorScheme.surfaceVariant,
+                    MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 18,
+                    testTag = "conv_key_backspace"
+                )
+            }
+
+            // Row 3: 1, 2, 3, ±
+            Row(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CalcKeyButton("1", { viewModel.onConverterKey("1") }, Modifier.weight(1f).fillMaxHeight(), numBg, numColor, fontSize = 20)
+                CalcKeyButton("2", { viewModel.onConverterKey("2") }, Modifier.weight(1f).fillMaxHeight(), numBg, numColor, fontSize = 20)
+                CalcKeyButton("3", { viewModel.onConverterKey("3") }, Modifier.weight(1f).fillMaxHeight(), numBg, numColor, fontSize = 20)
+                CalcKeyButton("±", { viewModel.onConverterKey("+/-") }, Modifier.weight(1f).fillMaxHeight(), numBg, numColor, fontSize = 20)
+            }
+
+            // Row 4: 0, ., ⇄
+            Row(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CalcKeyButton("0", { viewModel.onConverterKey("0") }, Modifier.weight(2f).fillMaxHeight(), numBg, numColor, fontSize = 20)
+                CalcKeyButton(".", { viewModel.onConverterKey(".") }, Modifier.weight(1f).fillMaxHeight(), numBg, numColor, fontSize = 20)
+                CalcKeyButton("⇄", { viewModel.swapUnits() }, Modifier.weight(1f).fillMaxHeight(), MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.primary, fontSize = 20)
+            }
+        }
+    }
+
+    // All Units Comparison Modal Bottom Sheet
+    if (showAllUnitsSheet) {
+        ModalBottomSheet(
+            onDismissRequest = { showAllUnitsSheet = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(
+                    text = "${selectedCategory.title} — $converterInput ${fromUnit.symbol}",
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 380.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Text(
-                        text = "All Units",
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        items(quickComparisons) { item ->
-                            val isTarget = item.unit.id == toUnit.id
-                            Surface(
+                    items(quickComparisons) { item ->
+                        val isTarget = item.unit.id == toUnit.id
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable {
+                                    viewModel.setToUnit(item.unit)
+                                    showAllUnitsSheet = false
+                                },
+                            color = if (isTarget) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable { viewModel.setToUnit(item.unit) },
-                                color = if (isTarget) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
-                                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                                shape = RoundedCornerShape(8.dp)
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(
-                                            text = item.unit.name,
-                                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                        Text(
-                                            text = item.valueFormatted,
-                                            style = MaterialTheme.typography.bodySmall.copy(
-                                                fontFamily = ScratchpadMonoFontFamily,
-                                                fontWeight = FontWeight.Medium
-                                            ),
-                                            color = if (isTarget) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    }
-                                    Text(
-                                        text = item.unit.symbol,
-                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
+                                Text(
+                                    text = "${item.unit.name} (${item.unit.symbol})",
+                                    style = MaterialTheme.typography.bodyMedium.copy(
+                                        fontWeight = if (isTarget) FontWeight.Bold else FontWeight.Medium
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = item.valueFormatted,
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontFamily = ScratchpadMonoFontFamily,
+                                        fontWeight = FontWeight.Bold
+                                    ),
+                                    color = if (isTarget) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
                         }
                     }

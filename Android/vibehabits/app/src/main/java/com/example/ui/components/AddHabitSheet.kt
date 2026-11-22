@@ -79,6 +79,14 @@ fun AddHabitSheet(
     modifier: Modifier = Modifier
 ) {
     var title by remember(habitToEdit) { mutableStateOf(habitToEdit?.title ?: "") }
+    val availableCategories = remember(habitToEdit) {
+        val currentCat = habitToEdit?.category?.trim()
+        if (!currentCat.isNullOrEmpty() && PRESET_CATEGORIES.none { it.equals(currentCat, ignoreCase = true) }) {
+            listOf(currentCat) + PRESET_CATEGORIES
+        } else {
+            PRESET_CATEGORIES
+        }
+    }
     var selectedCategory by remember(habitToEdit) {
         mutableStateOf(habitToEdit?.category ?: PRESET_CATEGORIES.first())
     }
@@ -198,7 +206,7 @@ fun AddHabitSheet(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    PRESET_CATEGORIES.forEach { category ->
+                    availableCategories.forEach { category ->
                         val isSelected = category.equals(selectedCategory, ignoreCase = true)
                         Box(
                             modifier = Modifier

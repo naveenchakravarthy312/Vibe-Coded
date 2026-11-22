@@ -1,0 +1,6 @@
+{
+  "name": "Rally Timer",
+  "description": "Rally stage time recorder and telemetry log with stage presets, weather, camera views, and personal best tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

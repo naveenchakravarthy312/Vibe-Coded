@@ -194,12 +194,10 @@ fun WipeConfirmDialog(
 @Composable
 fun FontSettingsDialog(
     fontSizeSp: Int,
-    isMonospace: Boolean,
     isAmoledMode: Boolean,
     isDynamicColor: Boolean,
     onAdjustFontSize: (Int) -> Unit,
     onResetFontSize: () -> Unit,
-    onToggleMonospace: () -> Unit,
     onToggleAmoledMode: () -> Unit,
     onToggleDynamicColor: () -> Unit,
     onDismiss: () -> Unit
@@ -273,37 +271,6 @@ fun FontSettingsDialog(
                     ) {
                         Icon(Icons.Default.ZoomIn, contentDescription = "Increase", tint = TextSecondary)
                     }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
-                        Text(
-                            text = "Monospace Typography",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = TextPrimary
-                        )
-                        Text(
-                            text = if (isMonospace) "JetBrains Mono (bundled)" else "Roboto Sans (bundled)",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextMuted
-                        )
-                    }
-                    Switch(
-                        checked = isMonospace,
-                        onCheckedChange = { onToggleMonospace() },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = CanvasDark,
-                            checkedTrackColor = AccentCyan,
-                            uncheckedTrackColor = BorderSubtle
-                        ),
-                        modifier = Modifier.testTag("monospace_switch")
-                    )
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))

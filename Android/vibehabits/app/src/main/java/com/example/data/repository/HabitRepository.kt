@@ -4,8 +4,6 @@ import com.example.data.local.HabitCompletionEntity
 import com.example.data.local.HabitDao
 import com.example.data.local.HabitEntity
 import com.example.data.model.Habit
-import com.example.data.model.HabitExportData
-import com.example.data.model.HabitExportItem
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
@@ -27,63 +25,6 @@ class HabitRepository(
 
     val habitsFlow: Flow<List<Habit>> = habitDao.getAllHabitsWithCompletions().map { list ->
         list.map { it.toDomainModel() }
-    }
-
-    suspend fun ensureInitialSeed(today: LocalDate = LocalDate.now()) {
-        if (habitDao.getHabitsCount() > 0) return
-
-        val isoDate = DateTimeFormatter.ISO_LOCAL_DATE
-        val todayStr = today.format(isoDate)
-        val yestStr = today.minusDays(1).format(isoDate)
-        val d2Str = today.minusDays(2).format(isoDate)
-        val d3Str = today.minusDays(3).format(isoDate)
-        val d4Str = today.minusDays(4).format(isoDate)
-        val d5Str = today.minusDays(5).format(isoDate)
-
-        val starterHabits = listOf(
-            HabitEntity(
-                id = UUID.randomUUID().toString(),
-                title = "Morning Hydration (1L)",
-                category = "Health",
-                createdAt = today.minusDays(14).format(isoDate)
-            ),
-            HabitEntity(
-                id = UUID.randomUUID().toString(),
-                title = "Deep Focus Work (45m)",
-                category = "Focus",
-                createdAt = today.minusDays(20).format(isoDate)
-            ),
-            HabitEntity(
-                id = UUID.randomUUID().toString(),
-                title = "Evening Wind Down (No Screens)",
-                category = "Mind",
-                createdAt = today.minusDays(10).format(isoDate)
-            )
-        )
-
-        habitDao.insertHabits(starterHabits)
-
-        // Seed some realistic completions for a welcoming feel
-        val completions = listOf(
-            // Morning Hydration: 5-day active streak up to today
-            HabitCompletionEntity(starterHabits[0].id, todayStr),
-            HabitCompletionEntity(starterHabits[0].id, yestStr),
-            HabitCompletionEntity(starterHabits[0].id, d2Str),
-            HabitCompletionEntity(starterHabits[0].id, d3Str),
-            HabitCompletionEntity(starterHabits[0].id, d4Str),
-
-            // Deep Focus: 4-day streak ending yesterday (ready to complete today!)
-            HabitCompletionEntity(starterHabits[1].id, yestStr),
-            HabitCompletionEntity(starterHabits[1].id, d2Str),
-            HabitCompletionEntity(starterHabits[1].id, d3Str),
-            HabitCompletionEntity(starterHabits[1].id, d5Str),
-
-            // Evening Wind Down: 3-day streak ending yesterday
-            HabitCompletionEntity(starterHabits[2].id, yestStr),
-            HabitCompletionEntity(starterHabits[2].id, d2Str),
-            HabitCompletionEntity(starterHabits[2].id, d3Str)
-        )
-        habitDao.insertCompletions(completions)
     }
 
     suspend fun addHabit(title: String, category: String, today: LocalDate = LocalDate.now()): Habit {
@@ -156,7 +97,7 @@ class HabitRepository(
     }
 
     /**
-     * Imports from universal JSON string with schema validation.
+     * Imports from universal JSON string with schema and ISO date validation.
      */
     suspend fun importFromJson(jsonString: String, replaceAll: Boolean = false): Result<ImportResult> {
         return runCatching {
@@ -165,16 +106,26 @@ class HabitRepository(
                 throw IllegalArgumentException("Invalid backup file: missing 'habits' field.")
             }
 
+            val isoFormatter = DateTimeFormatter.ISO_LOCAL_DATE
+            val todayStr = LocalDate.now().format(isoFormatter)
             val habitsArray = root.getJSONArray("habits")
             val newHabitEntities = mutableListOf<HabitEntity>()
             val newCompletions = mutableListOf<HabitCompletionEntity>()
 
             for (i in 0 until habitsArray.length()) {
                 val obj = habitsArray.getJSONObject(i)
-                val id = obj.optString("id").ifEmpty { UUID.randomUUID().toString() }
-                val title = obj.getString("title")
-                val category = obj.optString("category", "General")
-                val createdAt = obj.optString("created_at", LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE))
+                val id = obj.optString("id").trim().ifEmpty { UUID.randomUUID().toString() }
+                val title = obj.optString("title").trim()
+                if (title.isEmpty()) {
+                    throw IllegalArgumentException("Habit at index $i has an empty title.")
+                }
+                val category = obj.optString("category", "General").trim().ifEmpty { "General" }
+                val rawCreatedAt = obj.optString("created_at", todayStr).trim()
+                val createdAt = try {
+                    LocalDate.parse(rawCreatedAt, isoFormatter).format(isoFormatter)
+                } catch (_: Exception) {
+                    todayStr
+                }
 
                 newHabitEntities.add(
                     HabitEntity(
@@ -188,9 +139,14 @@ class HabitRepository(
                 if (obj.has("completion_dates")) {
                     val compArr = obj.getJSONArray("completion_dates")
                     for (c in 0 until compArr.length()) {
-                        val d = compArr.getString(c)
-                        if (d.isNotBlank()) {
-                            newCompletions.add(HabitCompletionEntity(habitId = id, date = d))
+                        val d = compArr.optString(c).trim()
+                        if (d.isNotEmpty()) {
+                            val validDate = try {
+                                LocalDate.parse(d, isoFormatter).format(isoFormatter)
+                            } catch (_: Exception) {
+                                throw IllegalArgumentException("Invalid completion date '$d' in habit '$title'. Expected YYYY-MM-DD.")
+                            }
+                            newCompletions.add(HabitCompletionEntity(habitId = id, date = validDate))
                         }
                     }
                 }

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>Minimal Music Player</string>
+    <key>CFBundleDisplayName</key>
+    <string>Minimal Music Player</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.vibecoding.minimalmusicplayer</string>
+    <key>CFBundleVersion</key>
+    <string>1.0.0</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleExecutable</key>
+    <string>MinimalMusicPlayer</string>
+    <key>CFBundleIconFile</key>
+    <string>icon.png</string>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>LSMinimumSystemVersion</key>
+    <string>11.0</string>
+    <key>CFBundleDocumentTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeName</key>
+            <string>Audio and Playlist Files</string>
+            <key>CFBundleTypeRole</key>
+            <string>Viewer</string>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>mp3</string>
+                <string>flac</string>
+                <string>ogg</string>
+                <string>opus</string>
+                <string>m4a</string>
+                <string>wav</string>
+                <string>m3u</string>
+                <string>m3u8</string>
+            </array>
+            <key>LSItemContentTypes</key>
+            <array>
+                <string>public.audio</string>
+                <string>public.mp3</string>
+                <string>public.mpeg-4-audio</string>
+                <string>org.xiph.flac</string>
+                <string>public.m3u-playlist</string>
+                <string>public.folder</string>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>

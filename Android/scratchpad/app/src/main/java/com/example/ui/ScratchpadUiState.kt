@@ -8,8 +8,9 @@ data class ScratchpadUiState(
     val activeNoteId: Long? = null,
     val activeNoteTitle: String = "Untitled",
     val isModified: Boolean = false,
+    val canUndo: Boolean = false,
+    val canRedo: Boolean = false,
     val fontSizeSp: Int = 15,
-    val isMonospace: Boolean = true,
     val isAmoledMode: Boolean = false,
     val isDynamicColor: Boolean = true,
     val useSystemTheme: Boolean = true,
@@ -30,9 +31,18 @@ data class ScratchpadUiState(
 ) {
     val wordCount: Int
         get() {
-            val text = textFieldValue.text.trim()
-            if (text.isEmpty()) return 0
-            return text.split(Regex("\\s+")).filter { it.isNotEmpty() }.size
+            val text = textFieldValue.text
+            var count = 0
+            var inWord = false
+            for (ch in text) {
+                if (ch.isWhitespace()) {
+                    inWord = false
+                } else if (!inWord) {
+                    inWord = true
+                    count++
+                }
+            }
+            return count
         }
 
     val charCount: Int

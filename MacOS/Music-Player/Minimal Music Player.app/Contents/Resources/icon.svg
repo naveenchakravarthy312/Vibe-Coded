@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <rect x="0" y="0" width="256" height="256" rx="48" fill="#141414"/>
+  <!-- Minimalist geometric sound bars -->
+  <rect x="68" y="96" width="12" height="64" rx="2" fill="#585858"/>
+  <rect x="98" y="68" width="12" height="120" rx="2" fill="#e0e0e0"/>
+  <rect x="128" y="52" width="12" height="152" rx="2" fill="#e0e0e0"/>
+  <rect x="158" y="82" width="12" height="92" rx="2" fill="#e0e0e0"/>
+  <rect x="188" y="108" width="12" height="40" rx="2" fill="#585858"/>
+  <!-- Razor-thin progress line -->
+  <rect x="48" y="218" width="160" height="4" fill="#585858"/>
+  <rect x="48" y="218" width="96" height="4" fill="#e0e0e0"/>
+</svg>

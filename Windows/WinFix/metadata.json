@@ -1,0 +1,6 @@
+{
+  "name": "WinFix — Portable Windows 11 Utility",
+  "description": "Portable Windows desktop troubleshooting, non-admin app installer, Windows 10 UI familiarity tweaks, and PyQt6 build kit.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

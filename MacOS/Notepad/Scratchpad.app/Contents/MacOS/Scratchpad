@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+set -euo pipefail
+BUNDLE_MACOS_DIR="$(cd "$(dirname "$0")" && pwd)"
+NOTEPAD_DIR="$(cd "$BUNDLE_MACOS_DIR/../../.." && pwd)"
+if [ -x "$NOTEPAD_DIR/.venv/bin/python3" ]; then
+    exec "$NOTEPAD_DIR/.venv/bin/python3" "$NOTEPAD_DIR/ephemeral_pad.py" "$@"
+fi
+exec python3 "$NOTEPAD_DIR/ephemeral_pad.py" "$@"

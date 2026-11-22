@@ -14,20 +14,16 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Description
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.FormatSize
-import androidx.compose.material.icons.filled.Fullscreen
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Save
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.DeleteSweep
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -69,8 +65,6 @@ fun ScratchpadTopBar(
     onNewScratchpad: () -> Unit,
     onShareText: () -> Unit,
     onCopyAll: () -> Unit,
-    onToggleFind: () -> Unit,
-    onToggleZenMode: () -> Unit,
     onOpenFontSettings: () -> Unit,
     onClearScratchpad: () -> Unit,
     modifier: Modifier = Modifier
@@ -242,30 +236,6 @@ fun ScratchpadTopBar(
                                 Icon(Icons.Default.ContentCopy, contentDescription = null, tint = TextSecondary)
                             },
                             modifier = Modifier.testTag("menu_copy_all")
-                        )
-
-                        DropdownMenuItem(
-                            text = { Text("Find & Replace", color = TextPrimary) },
-                            onClick = {
-                                menuExpanded = false
-                                onToggleFind()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Search, contentDescription = null, tint = TextSecondary)
-                            },
-                            modifier = Modifier.testTag("menu_find_replace")
-                        )
-
-                        DropdownMenuItem(
-                            text = { Text("Zen Mode (Distraction-Free)", color = TextPrimary) },
-                            onClick = {
-                                menuExpanded = false
-                                onToggleZenMode()
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Fullscreen, contentDescription = null, tint = TextSecondary)
-                            },
-                            modifier = Modifier.testTag("menu_zen_mode")
                         )
 
                         DropdownMenuItem(

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=OmniCalc
+Comment=Ultra-minimalist, zero-chrome keyboard-driven math and unit scratchpad
+Exec=/usr/bin/env python3 /mnt/BA5EF38D5EF340A5/Antigravity/Vibe-Coding/Linux/OmniCalc/omnicalc.py
+Path=/mnt/BA5EF38D5EF340A5/Antigravity/Vibe-Coding/Linux/OmniCalc
+Icon=/mnt/BA5EF38D5EF340A5/Antigravity/Vibe-Coding/Linux/OmniCalc/icon.png
+Terminal=false
+Categories=Utility;Calculator;
+StartupWMClass=omnicalc

@@ -8,19 +8,21 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.AppDatabase
 import com.example.data.NoteEntity
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
 
 class ScratchpadViewModel(application: Application) : AndroidViewModel(application) {
+
+    private enum class EditKind { NONE, INSERT, DELETE, OTHER }
 
     private val db = AppDatabase.getDatabase(application)
     private val noteDao = db.noteDao()
@@ -29,15 +31,25 @@ class ScratchpadViewModel(application: Application) : AndroidViewModel(applicati
     private val _uiState = MutableStateFlow(ScratchpadUiState())
     val uiState: StateFlow<ScratchpadUiState> = _uiState.asStateFlow()
 
-    // Undo / Redo history stacks
+    // Undo / Redo history stacks with word-boundary & pause grouping
     private val undoStack = ArrayDeque<TextFieldValue>()
     private val redoStack = ArrayDeque<TextFieldValue>()
     private var isUndoRedoAction = false
+    private var lastEditTimeMs: Long = 0L
+    private var lastEditKind: EditKind = EditKind.NONE
+    private var lastInsertedWasWhitespace: Boolean = false
+    private var notesCollectionJob: Job? = null
+
+    internal var clockMs: () -> Long = { System.currentTimeMillis() }
+
+    companion object {
+        private const val MAX_UNDO_HISTORY = 100
+        private const val UNDO_GROUP_WINDOW_MS = 750L
+    }
 
     init {
         // Restore saved font size and preferences
         val savedFontSize = prefs.getInt("font_size", 15)
-        val savedMonospace = prefs.getBoolean("is_monospace", true)
         val savedAmoled = prefs.getBoolean("is_amoled_mode", false)
         val savedDynamicColor = prefs.getBoolean("is_dynamic_color", true)
         val savedSystemTheme = prefs.getBoolean("use_system_theme", true)
@@ -63,35 +75,93 @@ Tap anywhere to begin typing…
             it.copy(
                 textFieldValue = initialValue,
                 fontSizeSp = savedFontSize,
-                isMonospace = savedMonospace,
                 isAmoledMode = savedAmoled,
                 isDynamicColor = savedDynamicColor,
                 useSystemTheme = savedSystemTheme
             )
         }
 
-        // Collect saved notes from Room database
-        viewModelScope.launch {
-            noteDao.getAllNotes().collectLatest { notes ->
+        // Collect saved notes from Room database via a single cancellable collector
+        observeNotes("")
+    }
+
+    private fun observeNotes(query: String) {
+        notesCollectionJob?.cancel()
+        notesCollectionJob = viewModelScope.launch {
+            val source = if (query.isBlank()) {
+                noteDao.getAllNotes()
+            } else {
+                noteDao.searchNotes(query)
+            }
+            source.collectLatest { notes ->
                 _uiState.update { it.copy(savedNotes = notes) }
             }
         }
     }
 
-    fun onTextChanged(newValue: TextFieldValue) {
+    private fun resetUndoGrouping() {
+        lastEditKind = EditKind.NONE
+        lastEditTimeMs = 0L
+        lastInsertedWasWhitespace = false
+    }
+
+    private fun pushUndoSnapshot(snapshot: TextFieldValue) {
+        if (undoStack.size >= MAX_UNDO_HISTORY) {
+            undoStack.removeFirst()
+        }
+        undoStack.addLast(snapshot)
+    }
+
+    fun onTextChanged(newValue: TextFieldValue, forceUndoSnapshot: Boolean = false) {
         val current = _uiState.value.textFieldValue
         if (!isUndoRedoAction && current.text != newValue.text) {
-            if (undoStack.size >= 50) {
-                undoStack.removeFirst()
+            val now = clockMs()
+            val delta = newValue.text.length - current.text.length
+            val editKind = when {
+                forceUndoSnapshot || abs(delta) > 1 -> EditKind.OTHER
+                delta == 1 -> EditKind.INSERT
+                delta == -1 -> EditKind.DELETE
+                else -> EditKind.OTHER
             }
-            undoStack.addLast(current)
+
+            val insertedChar: Char? = if (editKind == EditKind.INSERT) {
+                val idx = (newValue.selection.start - 1).coerceIn(0, newValue.text.lastIndex)
+                newValue.text[idx]
+            } else {
+                null
+            }
+
+            val pauseExceeded = lastEditTimeMs > 0L && (now - lastEditTimeMs) >= UNDO_GROUP_WINDOW_MS
+            val startedNewWord = editKind == EditKind.INSERT &&
+                lastInsertedWasWhitespace &&
+                insertedChar != null &&
+                !insertedChar.isWhitespace()
+            val insertedNewline = editKind == EditKind.INSERT && insertedChar == '\n'
+
+            val shouldPushSnapshot = undoStack.isEmpty() ||
+                forceUndoSnapshot ||
+                editKind == EditKind.OTHER ||
+                lastEditKind != editKind ||
+                pauseExceeded ||
+                startedNewWord ||
+                insertedNewline
+
+            if (shouldPushSnapshot) {
+                pushUndoSnapshot(current)
+            }
+
             redoStack.clear()
+            lastEditTimeMs = now
+            lastEditKind = editKind
+            lastInsertedWasWhitespace = editKind == EditKind.INSERT && insertedChar?.isWhitespace() == true
         }
 
         _uiState.update {
             it.copy(
                 textFieldValue = newValue,
-                isModified = true
+                isModified = true,
+                canUndo = undoStack.isNotEmpty(),
+                canRedo = redoStack.isNotEmpty()
             )
         }
 
@@ -108,21 +178,43 @@ Tap anywhere to begin typing…
         if (undoStack.isNotEmpty()) {
             val previous = undoStack.removeLast()
             redoStack.addLast(_uiState.value.textFieldValue)
+            resetUndoGrouping()
             isUndoRedoAction = true
-            _uiState.update { it.copy(textFieldValue = previous, isModified = true) }
+            _uiState.update {
+                it.copy(
+                    textFieldValue = previous,
+                    isModified = true,
+                    canUndo = undoStack.isNotEmpty(),
+                    canRedo = redoStack.isNotEmpty()
+                )
+            }
             prefs.edit().putString("draft_text", previous.text).apply()
             isUndoRedoAction = false
+            if (_uiState.value.showFindReplace && _uiState.value.findQuery.isNotEmpty()) {
+                updateFindMatches(_uiState.value.findQuery, previous.text)
+            }
         }
     }
 
     fun redo() {
         if (redoStack.isNotEmpty()) {
             val next = redoStack.removeLast()
-            undoStack.addLast(_uiState.value.textFieldValue)
+            pushUndoSnapshot(_uiState.value.textFieldValue)
+            resetUndoGrouping()
             isUndoRedoAction = true
-            _uiState.update { it.copy(textFieldValue = next, isModified = true) }
+            _uiState.update {
+                it.copy(
+                    textFieldValue = next,
+                    isModified = true,
+                    canUndo = undoStack.isNotEmpty(),
+                    canRedo = redoStack.isNotEmpty()
+                )
+            }
             prefs.edit().putString("draft_text", next.text).apply()
             isUndoRedoAction = false
+            if (_uiState.value.showFindReplace && _uiState.value.findQuery.isNotEmpty()) {
+                updateFindMatches(_uiState.value.findQuery, next.text)
+            }
         }
     }
 
@@ -140,7 +232,7 @@ Tap anywhere to begin typing…
         val newCursor = start + textToInsert.length
         val newValue = TextFieldValue(newText, selection = TextRange(newCursor))
 
-        onTextChanged(newValue)
+        onTextChanged(newValue, forceUndoSnapshot = true)
     }
 
     fun insertTimestamp() {
@@ -174,12 +266,6 @@ Tap anywhere to begin typing…
     fun resetFontSize() {
         _uiState.update { it.copy(fontSizeSp = 15) }
         prefs.edit().putInt("font_size", 15).apply()
-    }
-
-    fun toggleMonospace() {
-        val next = !_uiState.value.isMonospace
-        _uiState.update { it.copy(isMonospace = next) }
-        prefs.edit().putBoolean("is_monospace", next).apply()
     }
 
     fun toggleAmoledMode() {
@@ -236,8 +322,9 @@ Tap anywhere to begin typing…
     fun clearScratchpad() {
         val current = _uiState.value.textFieldValue
         if (current.text.isNotEmpty()) {
-            undoStack.addLast(current)
+            pushUndoSnapshot(current)
             redoStack.clear()
+            resetUndoGrouping()
         }
         _uiState.update {
             it.copy(
@@ -245,6 +332,8 @@ Tap anywhere to begin typing…
                 activeNoteId = null,
                 activeNoteTitle = "Untitled",
                 isModified = false,
+                canUndo = undoStack.isNotEmpty(),
+                canRedo = redoStack.isNotEmpty(),
                 showWipeConfirmDialog = false,
                 statusMessage = "Scratchpad cleared"
             )
@@ -253,18 +342,21 @@ Tap anywhere to begin typing…
     }
 
     fun newScratchpad() {
+        undoStack.clear()
+        redoStack.clear()
+        resetUndoGrouping()
         _uiState.update {
             it.copy(
                 textFieldValue = TextFieldValue(""),
                 activeNoteId = null,
                 activeNoteTitle = "Untitled",
                 isModified = false,
+                canUndo = false,
+                canRedo = false,
                 showSavedNotesSheet = false,
                 statusMessage = "New scratchpad ready"
             )
         }
-        undoStack.clear()
-        redoStack.clear()
         prefs.edit().putString("draft_text", "").apply()
     }
 
@@ -285,17 +377,21 @@ Tap anywhere to begin typing…
                 }
             }
 
+            val now = System.currentTimeMillis()
+            val existing = currentState.activeNoteId?.let { noteDao.getNoteById(it) }
             val note = NoteEntity(
-                id = currentState.activeNoteId ?: 0L,
+                id = existing?.id ?: 0L,
                 title = resolvedTitle,
                 content = content,
-                updatedAt = System.currentTimeMillis(),
+                createdAt = existing?.createdAt ?: now,
+                updatedAt = now,
+                isPinned = existing?.isPinned ?: false,
                 wordCount = currentState.wordCount,
                 charCount = currentState.charCount
             )
 
             val savedId = noteDao.insertNote(note)
-            val finalId = if (currentState.activeNoteId == null || currentState.activeNoteId == 0L) savedId else currentState.activeNoteId
+            val finalId = if (existing == null) savedId else existing.id
 
             _uiState.update {
                 it.copy(
@@ -312,6 +408,7 @@ Tap anywhere to begin typing…
     fun loadNote(note: NoteEntity) {
         undoStack.clear()
         redoStack.clear()
+        resetUndoGrouping()
         val textValue = TextFieldValue(note.content, selection = TextRange(note.content.length))
         _uiState.update {
             it.copy(
@@ -319,6 +416,8 @@ Tap anywhere to begin typing…
                 activeNoteId = note.id,
                 activeNoteTitle = note.title,
                 isModified = false,
+                canUndo = false,
+                canRedo = false,
                 showSavedNotesSheet = false,
                 statusMessage = "Loaded \"${note.title}\""
             )
@@ -370,6 +469,7 @@ Tap anywhere to begin typing…
     fun loadExternalFile(fileName: String, content: String) {
         undoStack.clear()
         redoStack.clear()
+        resetUndoGrouping()
         val title = fileName.removeSuffix(".txt").removeSuffix(".md")
         val textValue = TextFieldValue(content, selection = TextRange(content.length))
         _uiState.update {
@@ -378,6 +478,8 @@ Tap anywhere to begin typing…
                 activeNoteId = null,
                 activeNoteTitle = title,
                 isModified = true,
+                canUndo = false,
+                canRedo = false,
                 statusMessage = "Opened $fileName"
             )
         }
@@ -390,19 +492,13 @@ Tap anywhere to begin typing…
         }
     }
 
+    fun showStatusMessage(message: String) {
+        _uiState.update { it.copy(statusMessage = message) }
+    }
+
     fun setSearchQuery(query: String) {
         _uiState.update { it.copy(searchQuery = query) }
-        viewModelScope.launch {
-            if (query.isBlank()) {
-                noteDao.getAllNotes().collectLatest { notes ->
-                    _uiState.update { it.copy(savedNotes = notes) }
-                }
-            } else {
-                noteDao.searchNotes(query).collectLatest { notes ->
-                    _uiState.update { it.copy(savedNotes = notes) }
-                }
-            }
-        }
+        observeNotes(query)
     }
 
     // Find and Replace logic
@@ -421,10 +517,15 @@ Tap anywhere to begin typing…
             return
         }
         val matches = Regex.escape(query).toRegex(RegexOption.IGNORE_CASE).findAll(text).toList()
-        _uiState.update {
-            it.copy(
+        _uiState.update { state ->
+            val preservedIdx = if (matches.isEmpty()) {
+                0
+            } else {
+                state.currentMatchIndex.coerceIn(0, matches.size)
+            }
+            state.copy(
                 findMatchesCount = matches.size,
-                currentMatchIndex = if (matches.isNotEmpty()) 1 else 0
+                currentMatchIndex = preservedIdx
             )
         }
     }
@@ -439,11 +540,12 @@ Tap anywhere to begin typing…
         if (matches.isEmpty()) return
 
         val currentIdx = _uiState.value.currentMatchIndex
-        val nextIdx = if (currentIdx >= matches.size) 1 else currentIdx + 1
+        val nextIdx = if (currentIdx < 1 || currentIdx >= matches.size) 1 else currentIdx + 1
         val match = matches[nextIdx - 1]
 
         _uiState.update {
             it.copy(
+                findMatchesCount = matches.size,
                 currentMatchIndex = nextIdx,
                 textFieldValue = it.textFieldValue.copy(
                     selection = TextRange(match.range.first, match.range.last + 1)
@@ -467,6 +569,7 @@ Tap anywhere to begin typing…
 
         _uiState.update {
             it.copy(
+                findMatchesCount = matches.size,
                 currentMatchIndex = prevIdx,
                 textFieldValue = it.textFieldValue.copy(
                     selection = TextRange(match.range.first, match.range.last + 1)
@@ -481,6 +584,7 @@ Tap anywhere to begin typing…
         val current = _uiState.value.textFieldValue
         val text = current.text
         val selection = current.selection
+        if (query.isEmpty() || text.isEmpty()) return
 
         if (selection.collapsed) {
             findNext()
@@ -490,9 +594,29 @@ Tap anywhere to begin typing…
         val selectedText = text.substring(selection.min, selection.max)
         if (selectedText.equals(query, ignoreCase = true)) {
             val newText = text.substring(0, selection.min) + replacement + text.substring(selection.max)
-            val newCursor = selection.min + replacement.length
-            onTextChanged(TextFieldValue(newText, selection = TextRange(newCursor)))
-            findNext()
+            val afterPos = selection.min + replacement.length
+            onTextChanged(
+                TextFieldValue(newText, selection = TextRange(afterPos)),
+                forceUndoSnapshot = true
+            )
+
+            // Advance strictly past the replaced occurrence (wrapping to first match if none remain after)
+            val matches = Regex.escape(query).toRegex(RegexOption.IGNORE_CASE).findAll(newText).toList()
+            if (matches.isNotEmpty()) {
+                val nextIndex0 = matches.indexOfFirst { it.range.first >= afterPos }.let {
+                    if (it >= 0) it else 0
+                }
+                val match = matches[nextIndex0]
+                _uiState.update {
+                    it.copy(
+                        findMatchesCount = matches.size,
+                        currentMatchIndex = nextIndex0 + 1,
+                        textFieldValue = it.textFieldValue.copy(
+                            selection = TextRange(match.range.first, match.range.last + 1)
+                        )
+                    )
+                }
+            }
         } else {
             findNext()
         }
@@ -505,9 +629,9 @@ Tap anywhere to begin typing…
         if (query.isEmpty() || text.isEmpty()) return
 
         val regex = Regex.escape(query).toRegex(RegexOption.IGNORE_CASE)
-        val newText = text.replace(regex, replacement)
-        onTextChanged(TextFieldValue(newText, selection = TextRange(0)))
-        _uiState.update { it.copy(findMatchesCount = 0, currentMatchIndex = 0, statusMessage = "All occurrences replaced") }
+        val newText = text.replace(regex, Regex.escapeReplacement(replacement))
+        onTextChanged(TextFieldValue(newText, selection = TextRange(0)), forceUndoSnapshot = true)
+        _uiState.update { it.copy(statusMessage = "All occurrences replaced") }
     }
 
     fun clearStatusMessage() {

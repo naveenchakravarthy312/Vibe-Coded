@@ -44,7 +44,6 @@ fun CalculatorScreen(
     val isScientific by viewModel.isScientificExpanded.collectAsState()
     val memoryValue by viewModel.memoryValue.collectAsState()
     val errorMessage by viewModel.errorMessage.collectAsState()
-    val themeMode by viewModel.themeMode.collectAsState()
 
     val scrollState = rememberScrollState()
 
@@ -79,54 +78,30 @@ fun CalculatorScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.SpaceBetween
             ) {
-                // Secondary Accessory Row (Angle mode, AMOLED quick toggle, Memory chips, Scientific toggle)
+                // Secondary Accessory Row (Angle mode, Memory chips, Scientific toggle)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // DEG/RAD Toggle Chip
-                        FilterChip(
-                            selected = angleMode == CalculatorEngine.AngleMode.RAD,
-                            onClick = { viewModel.toggleAngleMode() },
-                            label = {
-                                Text(
-                                    text = angleMode.name,
-                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            ),
-                            modifier = Modifier
-                                .height(30.dp)
-                                .testTag("deg_rad_toggle")
-                        )
-
-                        // AMOLED Quick Toggle Chip
-                        FilterChip(
-                            selected = themeMode == AppThemeMode.AMOLED,
-                            onClick = { viewModel.toggleAmoledQuick() },
-                            label = {
-                                Text(
-                                    text = "OLED",
-                                    style = MaterialTheme.typography.labelSmall
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
-                                selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
-                            ),
-                            modifier = Modifier
-                                .height(30.dp)
-                                .testTag("amoled_quick_toggle")
-                        )
-                    }
+                    // DEG/RAD Toggle Chip
+                    FilterChip(
+                        selected = angleMode == CalculatorEngine.AngleMode.RAD,
+                        onClick = { viewModel.toggleAngleMode() },
+                        label = {
+                            Text(
+                                text = angleMode.name,
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer
+                        ),
+                        modifier = Modifier
+                            .height(30.dp)
+                            .testTag("deg_rad_toggle")
+                    )
 
                     // Memory Chips Row
                     Row(

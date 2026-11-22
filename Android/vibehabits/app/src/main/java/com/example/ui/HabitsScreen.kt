@@ -1,8 +1,5 @@
 package com.example.ui
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,15 +22,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Contrast
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.FloatingActionButtonDefaults
@@ -43,12 +37,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -59,7 +50,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -74,11 +64,7 @@ import com.example.ui.components.HabitDetailSheet
 import com.example.ui.theme.AccentCyan
 import com.example.ui.theme.BorderSubtle
 import com.example.ui.theme.CanvasDark
-import com.example.ui.theme.ErrorRed
 import com.example.ui.theme.OnAccentCyan
-import com.example.ui.theme.OnErrorRed
-import com.example.ui.theme.SuccessGreen
-import com.example.ui.theme.SurfaceDark
 import com.example.ui.theme.SurfaceVariantDark
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
@@ -135,7 +121,6 @@ fun HabitsScreen(
         containerColor = CanvasDark,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            // Fixed 48dp height Top Bar with flat #141414 background and single bottom divider in #2C2C30
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -227,7 +212,7 @@ fun HabitsScreen(
                             modifier = Modifier.testTag("top_bar_export_button")
                         ) {
                             Icon(
-                                imageVector = Icons.Default.FileDownload,
+                                imageVector = Icons.Default.FileUpload,
                                 contentDescription = null,
                                 tint = AccentCyan,
                                 modifier = Modifier.size(16.dp)
@@ -250,7 +235,7 @@ fun HabitsScreen(
                             modifier = Modifier.testTag("top_bar_import_button")
                         ) {
                             Icon(
-                                imageVector = Icons.Default.FileUpload,
+                                imageVector = Icons.Default.FileDownload,
                                 contentDescription = null,
                                 tint = AccentCyan,
                                 modifier = Modifier.size(16.dp)
@@ -266,7 +251,6 @@ fun HabitsScreen(
                     }
                 }
 
-                // Single bottom divider in #2C2C30
                 HorizontalDivider(
                     thickness = 1.dp,
                     color = BorderSubtle
@@ -407,58 +391,14 @@ fun HabitsScreen(
                         items = habits,
                         key = { it.id }
                     ) { habit ->
-                        val dismissState = rememberSwipeToDismissBoxState(
-                            confirmValueChange = { dismissValue ->
-                                if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
-                                    viewModel.deleteHabit(habit.id)
-                                    true
-                                } else {
-                                    false
-                                }
-                            }
+                        HabitCard(
+                            habit = habit,
+                            onToggleToday = { viewModel.toggleToday(habit.id) },
+                            onToggleDay = { dateStr, currentStatus ->
+                                viewModel.toggleDay(habit.id, dateStr, currentStatus)
+                            },
+                            onClick = { selectedHabitForDetail = habit }
                         )
-
-                        SwipeToDismissBox(
-                            state = dismissState,
-                            enableDismissFromStartToEnd = false,
-                            backgroundContent = {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(ErrorRed.copy(alpha = 0.85f))
-                                        .padding(horizontal = 20.dp),
-                                    contentAlignment = Alignment.CenterEnd
-                                ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                    ) {
-                                        Text(
-                                            text = "DELETE",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = OnErrorRed,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                        Icon(
-                                            imageVector = Icons.Default.Delete,
-                                            contentDescription = "Delete",
-                                            tint = OnErrorRed,
-                                            modifier = Modifier.size(20.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        ) {
-                            HabitCard(
-                                habit = habit,
-                                onToggleToday = { viewModel.toggleToday(habit.id) },
-                                onToggleDay = { dateStr, currentStatus ->
-                                    viewModel.toggleDay(habit.id, dateStr, currentStatus)
-                                },
-                                onClick = { selectedHabitForDetail = habit }
-                            )
-                        }
                     }
                 }
             }

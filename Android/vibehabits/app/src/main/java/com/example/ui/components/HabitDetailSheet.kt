@@ -83,7 +83,7 @@ fun HabitDetailSheet(
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     // Last 28 days (4 weeks) grid for visual inspection
-    val last28Days = remember(habit.completionDates) {
+    val last28Days = remember(habit.completionDates, today) {
         val formatter = DateTimeFormatter.ISO_LOCAL_DATE
         (27 downTo 0).map { daysAgo ->
             val d = today.minusDays(daysAgo.toLong())
@@ -97,8 +97,8 @@ fun HabitDetailSheet(
         }
     }
 
-    val past30DaysCompletions = last28Days.count { it.isCompleted }
-    val completionPercentage = ((past30DaysCompletions.toFloat() / 28f) * 100).toInt()
+    val past28DaysCompletions = last28Days.count { it.isCompleted }
+    val completionPercentage = ((past28DaysCompletions.toFloat() / 28f) * 100).toInt()
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,

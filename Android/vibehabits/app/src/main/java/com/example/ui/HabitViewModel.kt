@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -37,21 +38,25 @@ class HabitViewModel(application: Application) : AndroidViewModel(application) {
     private val _selectedCategoryFilter = MutableStateFlow<String?>(null)
     val selectedCategoryFilter: StateFlow<String?> = _selectedCategoryFilter.asStateFlow()
 
-    private val _searchQuery = MutableStateFlow("")
-    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
-
     private val _uiMessage = MutableStateFlow<String?>(null)
     val uiMessage: StateFlow<String?> = _uiMessage.asStateFlow()
 
     val filteredHabits: StateFlow<List<Habit>> = combine(
         habits,
-        _selectedCategoryFilter,
-        _searchQuery
-    ) { allHabits, categoryFilter, query ->
-        allHabits.filter { habit ->
-            val matchesCategory = categoryFilter == null || habit.category.equals(categoryFilter, ignoreCase = true)
-            val matchesQuery = query.isBlank() || habit.title.contains(query, ignoreCase = true) || habit.category.contains(query, ignoreCase = true)
-            matchesCategory && matchesQuery
+        _selectedCategoryFilter
+    ) { allHabits, categoryFilter ->
+        if (categoryFilter == null) {
+            allHabits
+        } else {
+            val matching = allHabits.filter { habit ->
+                habit.category.equals(categoryFilter, ignoreCase = true)
+            }
+            if (matching.isEmpty() && allHabits.isNotEmpty()) {
+                _selectedCategoryFilter.value = null
+                allHabits
+            } else {
+                matching
+            }
         }
     }.stateIn(
         scope = viewModelScope,
@@ -59,7 +64,7 @@ class HabitViewModel(application: Application) : AndroidViewModel(application) {
         initialValue = emptyList()
     )
 
-    val exportJsonString: StateFlow<String> = habits.combine(MutableStateFlow(Unit)) { allHabits, _ ->
+    val exportJsonString: StateFlow<String> = habits.map { allHabits ->
         repository.exportToJson(allHabits)
     }.stateIn(
         scope = viewModelScope,
@@ -67,18 +72,8 @@ class HabitViewModel(application: Application) : AndroidViewModel(application) {
         initialValue = "{}"
     )
 
-    init {
-        viewModelScope.launch {
-            repository.ensureInitialSeed()
-        }
-    }
-
     fun setCategoryFilter(category: String?) {
         _selectedCategoryFilter.value = category
-    }
-
-    fun setSearchQuery(query: String) {
-        _searchQuery.value = query
     }
 
     fun toggleToday(habitId: String) {

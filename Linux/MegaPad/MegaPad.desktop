@@ -1,0 +1,13 @@
+#!/usr/bin/env xdg-open
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=MegaPad
+Comment=Zero-chrome, ultra-lightweight high-capacity editor for massive files (10M+ words)
+Exec=/usr/bin/env python3 /mnt/BA5EF38D5EF340A5/Antigravity/Vibe-Coding/Linux/MegaPad/megapad.py %F
+Path=/mnt/BA5EF38D5EF340A5/Antigravity/Vibe-Coding/Linux/MegaPad
+Icon=/mnt/BA5EF38D5EF340A5/Antigravity/Vibe-Coding/Linux/MegaPad/icon.png
+Terminal=false
+Categories=Utility;TextEditor;
+StartupWMClass=megapad
+MimeType=text/plain;text/markdown;

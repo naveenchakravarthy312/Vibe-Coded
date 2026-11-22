@@ -29,9 +29,5 @@ data class TerminalUiState(
     val isTestingConnection: Boolean = false,
     val commandInput: String = "",
     val ctrlActive: Boolean = false,
-    val altActive: Boolean = false,
-    val historyIndex: Int = -1, // -1 means current input
-    val terminalSearchQuery: String = "",
-    val isSearchOpen: Boolean = false,
-    val statusMessage: String? = null
+    val historyIndex: Int = -1 // -1 means current input
 )

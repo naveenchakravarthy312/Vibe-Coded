@@ -51,10 +51,10 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     modifier = Modifier
                         .fillMaxSize()
-                        .statusBarsPadding()
-                        .navigationBarsPadding()
-                        .imePadding()
+                        .background(MaterialTheme.colorScheme.background)
+                        .windowInsetsPadding(WindowInsets.safeDrawing)
                         .testTag("omnicalc_scaffold"),
+                    containerColor = MaterialTheme.colorScheme.background,
                     topBar = {
                         OmniCalcTopBar(
                             activeTab = activeTab,
@@ -71,6 +71,7 @@ class MainActivity : ComponentActivity() {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
+                            .background(MaterialTheme.colorScheme.background)
                             .padding(innerPadding)
                     ) {
                         AnimatedContent(

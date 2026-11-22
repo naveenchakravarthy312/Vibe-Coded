@@ -40,6 +40,18 @@ class ExampleUnitTest {
         val implicitRes = CalculatorEngine.evaluate("5 * sin(30) + 2(3)", CalculatorEngine.AngleMode.DEG)
         assertTrue(implicitRes is CalculatorEngine.EvalResult.Success)
         assertEquals("8.5", (implicitRes as CalculatorEngine.EvalResult.Success).formatted)
+
+        val sciNotationRes = CalculatorEngine.evaluate("1E12 + 5")
+        assertTrue(sciNotationRes is CalculatorEngine.EvalResult.Success)
+        assertEquals(1.000000000005E12, (sciNotationRes as CalculatorEngine.EvalResult.Success).value, 1.0)
+
+        val percentRes = CalculatorEngine.evaluate("200 * 15%")
+        assertTrue(percentRes is CalculatorEngine.EvalResult.Success)
+        assertEquals("30", (percentRes as CalculatorEngine.EvalResult.Success).formatted)
+
+        val trigPowerRes = CalculatorEngine.evaluate("sin(30)^2", CalculatorEngine.AngleMode.DEG)
+        assertTrue(trigPowerRes is CalculatorEngine.EvalResult.Success)
+        assertEquals("0.25", (trigPowerRes as CalculatorEngine.EvalResult.Success).formatted)
     }
 
     @Test

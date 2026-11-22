@@ -22,8 +22,6 @@ import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.ZoomIn
-import androidx.compose.material.icons.filled.ZoomOut
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -58,8 +56,6 @@ fun ScratchpadAccessoryBar(
     onInsertTimestamp: () -> Unit,
     onInsertChecklist: () -> Unit,
     onInsertBullet: () -> Unit,
-    onZoomIn: () -> Unit,
-    onZoomOut: () -> Unit,
     onToggleFind: () -> Unit,
     onToggleZenMode: () -> Unit,
     modifier: Modifier = Modifier
@@ -188,36 +184,6 @@ fun ScratchpadAccessoryBar(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.FormatListBulleted,
                     contentDescription = "Insert Bullet item",
-                    tint = TextSecondary,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-
-            // Zoom Out
-            IconButton(
-                onClick = onZoomOut,
-                modifier = Modifier
-                    .size(38.dp)
-                    .testTag("accessory_zoom_out_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ZoomOut,
-                    contentDescription = "Decrease Font Size",
-                    tint = TextSecondary,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-
-            // Zoom In
-            IconButton(
-                onClick = onZoomIn,
-                modifier = Modifier
-                    .size(38.dp)
-                    .testTag("accessory_zoom_in_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ZoomIn,
-                    contentDescription = "Increase Font Size",
                     tint = TextSecondary,
                     modifier = Modifier.size(18.dp)
                 )

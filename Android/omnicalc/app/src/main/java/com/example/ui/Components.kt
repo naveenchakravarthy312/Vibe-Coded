@@ -51,36 +51,40 @@ fun OmniCalcTopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(48.dp)
-                .padding(horizontal = 12.dp),
+                .padding(horizontal = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // App branding & offline badge
+            // Compact Tab Selector Strip inside the 48dp top bar
             Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .padding(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(3.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(MaterialTheme.colorScheme.primary),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Calculate,
-                        contentDescription = "OmniCalc",
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                Text(
-                    text = "OmniCalc",
-                    style = MaterialTheme.typography.titleMedium.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = (-0.3).sp
-                    ),
-                    color = MaterialTheme.colorScheme.onBackground
+                TabSegmentItem(
+                    label = "Calculator",
+                    icon = Icons.Default.Calculate,
+                    isSelected = activeTab == ActiveTab.CALCULATOR,
+                    onClick = { onTabSelected(ActiveTab.CALCULATOR) },
+                    modifier = Modifier.weight(1f)
+                )
+                TabSegmentItem(
+                    label = "Converter",
+                    icon = Icons.Default.SyncAlt,
+                    isSelected = activeTab == ActiveTab.CONVERTER,
+                    onClick = { onTabSelected(ActiveTab.CONVERTER) },
+                    modifier = Modifier.weight(1f)
+                )
+                TabSegmentItem(
+                    label = "History",
+                    icon = Icons.Default.History,
+                    isSelected = activeTab == ActiveTab.HISTORY,
+                    onClick = { onTabSelected(ActiveTab.HISTORY) },
+                    modifier = Modifier.weight(1f)
                 )
             }
 
@@ -92,7 +96,7 @@ fun OmniCalcTopBar(
                 IconButton(
                     onClick = { showThemeDialog = true },
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(36.dp)
                         .testTag("theme_switch_button")
                 ) {
                     val icon = when (themeMode) {
@@ -105,57 +109,24 @@ fun OmniCalcTopBar(
                         imageVector = icon,
                         contentDescription = "Switch theme",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(19.dp)
                     )
                 }
 
                 IconButton(
                     onClick = onOpenInfoDialog,
                     modifier = Modifier
-                        .size(38.dp)
+                        .size(36.dp)
                         .testTag("info_button")
                 ) {
                     Icon(
                         imageVector = Icons.Outlined.Info,
                         contentDescription = "App info",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
+                        modifier = Modifier.size(19.dp)
                     )
                 }
             }
-        }
-
-        // Tab Selector Strip (low-profile segmented tabs)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 4.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .padding(3.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            TabSegmentItem(
-                label = "Calculator",
-                icon = Icons.Default.Calculate,
-                isSelected = activeTab == ActiveTab.CALCULATOR,
-                onClick = { onTabSelected(ActiveTab.CALCULATOR) },
-                modifier = Modifier.weight(1f)
-            )
-            TabSegmentItem(
-                label = "Converter",
-                icon = Icons.Default.SyncAlt,
-                isSelected = activeTab == ActiveTab.CONVERTER,
-                onClick = { onTabSelected(ActiveTab.CONVERTER) },
-                modifier = Modifier.weight(1f)
-            )
-            TabSegmentItem(
-                label = "History",
-                icon = Icons.Default.History,
-                isSelected = activeTab == ActiveTab.HISTORY,
-                onClick = { onTabSelected(ActiveTab.HISTORY) },
-                modifier = Modifier.weight(1f)
-            )
         }
 
         HorizontalDivider(

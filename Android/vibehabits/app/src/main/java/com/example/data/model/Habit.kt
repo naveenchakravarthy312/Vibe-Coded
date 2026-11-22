@@ -109,18 +109,3 @@ data class DayStatus(
     val isCompleted: Boolean,
     val isToday: Boolean
 )
-
-data class HabitExportItem(
-    val id: String,
-    val title: String,
-    val category: String,
-    val created_at: String,
-    val completion_dates: List<String>
-)
-
-data class HabitExportData(
-    val app: String = "VibeHabits",
-    val version: Int = 1,
-    val exported_at: String,
-    val habits: List<HabitExportItem>
-)

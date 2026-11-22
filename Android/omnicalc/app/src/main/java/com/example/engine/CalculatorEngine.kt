@@ -116,8 +116,11 @@ object CalculatorEngine {
 
         // Grammar:
         // expression = term | expression `+` term | expression `-` term
-        // term = factor | term `*` factor | term `/` factor | term `%` factor
-        // factor = `+` factor | `-` factor | `(` expression `)` | number | functionName factor | factor `^` factor | factor `!`
+        // term = unary | term `*` unary | term `/` unary | term implicit-mul power
+        // unary = `+` unary | `-` unary | power
+        // power = postfix | postfix `^` unary
+        // postfix = primary | postfix `!` | postfix `%`
+        // primary = `(` expression `)` | number (with optional E[+-]digits) | constant | functionName primary
         private fun parseExpression(): Double {
             var x = parseTerm()
             while (true) {
@@ -130,73 +133,91 @@ object CalculatorEngine {
         }
 
         private fun parseTerm(): Double {
-            var x = parseFactor()
+            var x = parseUnary()
             while (true) {
                 while (ch == ' ') nextChar()
                 when {
-                    eat('*') -> x *= parseFactor()
+                    eat('*') -> x *= parseUnary()
                     eat('/') -> {
-                        val divisor = parseFactor()
+                        val divisor = parseUnary()
                         if (abs(divisor) < 1e-15) throw ArithmeticException("Cannot divide by zero")
                         x /= divisor
                     }
-                    eat('%') -> {
-                        // Modulo or percentage
-                        val divisor = parseFactor()
-                        if (abs(divisor) < 1e-15) throw ArithmeticException("Cannot divide by zero")
-                        x %= divisor
-                    }
                     ch == '(' || ch in 'a'..'z' || ch in 'A'..'Z' -> {
                         // Implicit multiplication: e.g. 2(3), 5sin(30), 2π
-                        x *= parseFactor()
+                        x *= parsePower()
                     }
                     else -> return x
                 }
             }
         }
 
-        private fun parseFactor(): Double {
-            if (eat('+')) return +parseFactor()
-            if (eat('-')) return -parseFactor()
+        private fun parseUnary(): Double {
+            if (eat('+')) return +parseUnary()
+            if (eat('-')) return -parseUnary()
+            return parsePower()
+        }
 
-            var x: Double
+        private fun parsePower(): Double {
+            var x = parsePostfix()
+            if (eat('^')) {
+                val exp = parseUnary()
+                x = x.pow(exp)
+            }
+            return x
+        }
+
+        private fun parsePostfix(): Double {
+            var x = parsePrimary()
+            while (true) {
+                when {
+                    eat('!') -> x = factorial(x)
+                    eat('%') -> x /= 100.0
+                    else -> break
+                }
+            }
+            return x
+        }
+
+        private fun parsePrimary(): Double {
+            while (ch == ' ') nextChar()
             val startPos = pos
 
             if (eat('(')) {
-                x = parseExpression()
+                val x = parseExpression()
                 eat(')') // auto-close if omitted
+                return x
             } else if ((ch in '0'..'9') || ch == '.') {
                 while ((ch in '0'..'9') || ch == '.') nextChar()
+                // Support scientific notation (e.g. 1E12, 1.5E-6)
+                if (ch == 'E') {
+                    val savedPos = pos
+                    val savedCh = ch
+                    nextChar()
+                    if (ch == '+' || ch == '-') nextChar()
+                    if (ch in '0'..'9') {
+                        while (ch in '0'..'9') nextChar()
+                    } else {
+                        pos = savedPos
+                        ch = savedCh
+                    }
+                }
                 val numStr = str.substring(startPos, pos)
-                x = numStr.toDouble()
+                return numStr.toDouble()
             } else if (ch in 'a'..'z' || ch in 'A'..'Z') {
                 while (ch in 'a'..'z' || ch in 'A'..'Z') nextChar()
                 val func = str.substring(startPos, pos).lowercase(Locale.US)
-                x = when (func) {
+                return when (func) {
                     "pi" -> Math.PI
                     "e" -> Math.E
                     else -> {
-                        val arg = parseFactor()
+                        val arg = if (ch == '(') parsePrimary() else parseUnary()
                         applyFunction(func, arg)
                     }
                 }
             } else {
                 throw IllegalArgumentException("Unexpected character: '$ch'")
             }
-
-            // Postfix operators: exponent ^ and factorial !
-            while (true) {
-                if (eat('^')) {
-                    val exp = parseFactor()
-                    x = x.pow(exp)
-                } else if (eat('!')) {
-                    x = factorial(x)
-                } else {
-                    break
-                }
-            }
-
-            return x
         }
 
         private fun applyFunction(name: String, arg: Double): Double {

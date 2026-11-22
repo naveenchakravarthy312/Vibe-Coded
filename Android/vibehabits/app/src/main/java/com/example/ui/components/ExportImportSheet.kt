@@ -97,7 +97,7 @@ fun ExportImportSheet(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    var selectedTab by remember { mutableStateOf(initialTab) }
+    var selectedTab by remember(initialTab) { mutableStateOf(initialTab) }
     var pastedJson by remember { mutableStateOf("") }
     var replaceAllOnImport by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
@@ -297,7 +297,7 @@ fun ExportImportSheet(
                                 .testTag("btn_save_backup_file")
                         ) {
                             Icon(
-                                imageVector = Icons.Default.FileDownload,
+                                imageVector = Icons.Default.FileUpload,
                                 contentDescription = null,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -433,7 +433,7 @@ fun ExportImportSheet(
                             .testTag("btn_open_backup_file")
                     ) {
                         Icon(
-                            imageVector = Icons.Default.FileUpload,
+                            imageVector = Icons.Default.FileDownload,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp)
                         )

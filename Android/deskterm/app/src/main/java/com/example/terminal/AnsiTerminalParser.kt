@@ -5,11 +5,22 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import com.example.ui.theme.*
 
 object AnsiTerminalParser {
 
-    private val ANSI_ESCAPE_REGEX = Regex("\u001B\\[([0-9;]*)([A-Za-z])")
+    private val ANSI_SEQUENCE_REGEX = Regex(
+        "\u001B\\[([?><=!]?)([0-9;:]*)[ -/]*([@A-Za-z~`])" +
+            "|" +
+            "\u001B\\][^\u0007\u001B\u009C\r\n]*(?:\u0007|\u009C|\u001B\\\\)?" +
+            "|" +
+            "\u001B[()#%][0-9A-Za-z]" +
+            "|" +
+            "\u001B[=>78cDMEHMNOZ]" +
+            "|" +
+            "\u0007"
+    )
 
     // Map ANSI standard color code (30-37, 90-97) to theme colors
     fun getForegroundColor(code: Int, isDark: Boolean): Color {
@@ -29,7 +40,7 @@ object AnsiTerminalParser {
             94 -> if (isDark) AccentFrostDark else AccentFrostLight
             95 -> if (isDark) PurpleDark else PurpleLight
             96 -> if (isDark) AccentCyanDark else AccentCyanLight
-            97 -> Color.White
+            97 -> if (isDark) Color.White else TextPrimaryLight
             else -> if (isDark) TextPrimaryDark else TextPrimaryLight
         }
     }
@@ -37,30 +48,34 @@ object AnsiTerminalParser {
     fun parse(rawText: String, isDark: Boolean): AnnotatedString {
         val defaultFg = if (isDark) TextPrimaryDark else TextPrimaryLight
         var currentFg = defaultFg
+        var currentBg = Color.Unspecified
         var isBold = false
         var isUnderline = false
 
         return buildAnnotatedString {
             var lastIndex = 0
 
-            for (match in ANSI_ESCAPE_REGEX.findAll(rawText)) {
+            for (match in ANSI_SEQUENCE_REGEX.findAll(rawText)) {
                 // Append text preceding the escape sequence
                 if (match.range.first > lastIndex) {
                     val chunk = rawText.substring(lastIndex, match.range.first)
                     val spanStyle = SpanStyle(
                         color = currentFg,
-                        fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal
+                        background = currentBg,
+                        fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal,
+                        textDecoration = if (isUnderline) TextDecoration.Underline else null
                     )
                     append(AnnotatedString(chunk, spanStyle))
                 }
 
-                val paramsStr = match.groupValues[1]
-                val command = match.groupValues[2]
+                val prefix = match.groupValues[1]
+                val paramsStr = match.groupValues[2]
+                val command = match.groupValues[3]
 
-                if (command == "m") { // Graphic Rendition (color/style)
+                if (prefix.isEmpty() && command == "m") { // SGR Graphic Rendition (color/style)
                     if (paramsStr.isEmpty() || paramsStr == "0") {
-                        // Reset
                         currentFg = defaultFg
+                        currentBg = Color.Unspecified
                         isBold = false
                         isUnderline = false
                     } else {
@@ -70,20 +85,21 @@ object AnsiTerminalParser {
                             when (val token = tokens[i]) {
                                 0 -> {
                                     currentFg = defaultFg
+                                    currentBg = Color.Unspecified
                                     isBold = false
                                     isUnderline = false
                                 }
                                 1 -> isBold = true
-                                2 -> isBold = false
+                                2, 22 -> isBold = false
                                 4 -> isUnderline = true
+                                24 -> isUnderline = false
                                 in 30..37, in 90..97 -> {
                                     currentFg = getForegroundColor(token, isDark)
                                 }
                                 38 -> {
                                     // 256 colors: 38;5;<n> or 24-bit 38;2;<r>;<g>;<b>
                                     if (i + 2 < tokens.size && tokens[i + 1] == 5) {
-                                        val colorIndex = tokens[i + 2]
-                                        currentFg = parse256Color(colorIndex, isDark)
+                                        currentFg = parse256Color(tokens[i + 2], isDark)
                                         i += 2
                                     } else if (i + 4 < tokens.size && tokens[i + 1] == 2) {
                                         val r = tokens[i + 2].coerceIn(0, 255)
@@ -94,6 +110,25 @@ object AnsiTerminalParser {
                                     }
                                 }
                                 39 -> currentFg = defaultFg
+                                in 40..47 -> {
+                                    currentBg = getForegroundColor(token - 10, isDark).copy(alpha = 0.25f)
+                                }
+                                in 100..107 -> {
+                                    currentBg = getForegroundColor(token - 10, isDark).copy(alpha = 0.25f)
+                                }
+                                48 -> {
+                                    if (i + 2 < tokens.size && tokens[i + 1] == 5) {
+                                        currentBg = parse256Color(tokens[i + 2], isDark).copy(alpha = 0.25f)
+                                        i += 2
+                                    } else if (i + 4 < tokens.size && tokens[i + 1] == 2) {
+                                        val r = tokens[i + 2].coerceIn(0, 255)
+                                        val g = tokens[i + 3].coerceIn(0, 255)
+                                        val b = tokens[i + 4].coerceIn(0, 255)
+                                        currentBg = Color(r, g, b).copy(alpha = 0.25f)
+                                        i += 4
+                                    }
+                                }
+                                49 -> currentBg = Color.Unspecified
                             }
                             i++
                         }
@@ -107,7 +142,9 @@ object AnsiTerminalParser {
                 val remaining = rawText.substring(lastIndex)
                 val spanStyle = SpanStyle(
                     color = currentFg,
-                    fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal
+                    background = currentBg,
+                    fontWeight = if (isBold) FontWeight.Bold else FontWeight.Normal,
+                    textDecoration = if (isUnderline) TextDecoration.Underline else null
                 )
                 append(AnnotatedString(remaining, spanStyle))
             }

@@ -1,0 +1,71 @@
+"""Tab 4: Windows Admin Shortcuts."""
+
+from __future__ import annotations
+
+from PyQt6.QtWidgets import (
+    QFrame,
+    QGridLayout,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
+
+from core import actions
+from ui.theme import TEXT_MUTED
+
+
+class AdminShortcutsTab(QWidget):
+    """Grid of direct one-click launch buttons for Windows administrative consoles."""
+
+    def __init__(self, log_cb, parent=None):
+        super().__init__(parent)
+        self._log = log_cb
+        self._build_ui()
+
+    def _build_ui(self) -> None:
+        root = QVBoxLayout(self)
+        root.setContentsMargins(8, 8, 8, 8)
+
+        card = QFrame()
+        card.setObjectName("CardPanel")
+        vbox = QVBoxLayout(card)
+        vbox.setContentsMargins(14, 12, 14, 14)
+        vbox.setSpacing(10)
+
+        lbl_title = QLabel("Windows Admin Shortcuts")
+        lbl_title.setObjectName("SectionTitle")
+        vbox.addWidget(lbl_title)
+
+        lbl_sub = QLabel("Direct one-click launchers for built-in Windows troubleshooting tools.")
+        lbl_sub.setObjectName("MutedLabel")
+        vbox.addWidget(lbl_sub)
+
+        grid = QGridLayout()
+        grid.setSpacing(10)
+        cols = 2
+        for idx, entry in enumerate(actions.ADMIN_SHORTCUTS):
+            cell = QFrame()
+            cell.setStyleSheet(
+                "QFrame { background-color: #141414; border: 1px solid #2C2C30; border-radius: 6px; }"
+            )
+            c_layout = QVBoxLayout(cell)
+            c_layout.setContentsMargins(10, 10, 10, 10)
+            c_layout.setSpacing(4)
+
+            btn = QPushButton(entry["label"])
+            if entry["id"] == "admin_ps":
+                btn.setObjectName("PrimaryButton")
+            btn.clicked.connect(lambda _=False, sid=entry["id"]: actions.launch_admin_shortcut(sid, self._log))
+            c_layout.addWidget(btn)
+
+            lbl_cmd = QLabel(f"{entry['cmd']}  —  {entry['desc']}")
+            lbl_cmd.setStyleSheet(f"font-size: 9.5pt; color: {TEXT_MUTED}; border: none;")
+            lbl_cmd.setWordWrap(True)
+            c_layout.addWidget(lbl_cmd)
+
+            grid.addWidget(cell, idx // cols, idx % cols)
+
+        vbox.addLayout(grid)
+        vbox.addStretch(1)
+        root.addWidget(card)

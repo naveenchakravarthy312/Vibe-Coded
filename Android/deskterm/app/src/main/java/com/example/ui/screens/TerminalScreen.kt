@@ -23,6 +23,7 @@ fun TerminalScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val activeProgress by viewModel.terminalBuffer.progressFlow.collectAsState()
     val context = LocalContext.current
 
     val exportLauncher = rememberLauncherForActivityResult(
@@ -73,6 +74,7 @@ fun TerminalScreen(
                 hapticEnabled = uiState.settings.hapticEnabled,
                 isAmoled = uiState.settings.themeMode == AppThemeMode.AMOLED,
                 onToggleAmoled = { viewModel.toggleAmoled() },
+                activeProgress = activeProgress,
                 modifier = Modifier
                     .imePadding()
                     .navigationBarsPadding()
@@ -85,6 +87,9 @@ fun TerminalScreen(
             rawTextFlow = viewModel.terminalBuffer.rawTextFlow,
             fontSizeSp = uiState.settings.fontSizeSp,
             autoScrollEnabled = uiState.settings.autoScroll,
+            onTerminalSizeChanged = { cols, rows, widthPx, heightPx ->
+                viewModel.onTerminalSizeChanged(cols, rows, widthPx, heightPx)
+            },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)

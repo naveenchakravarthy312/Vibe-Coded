@@ -2,15 +2,17 @@
 """
 Auto Clicker — Ultra-minimalist, zero-chrome GUI autoclicker for Linux (Wayland & X11).
 
-Design Aesthetic:
+Design Aesthetic (per DESKTOP-STYLE.md):
 - Matte Dark Canvas (#141414) with zero borders, dividers, or bevels
 - Soft Off-White Foreground (#e0e0e0)
 - Muted Slate Selection (#323842 with #ffffff text)
 - Whisper-Quiet Metadata (#585858) in the bottom-right corner
 - 24px Viewport Padding around all four edges
-- Optional Frameless Mode (F11 / Ctrl+Shift+F) with 24px margin drag & edge resizing
+- Optional Frameless Mode (F11 / Ctrl+Shift+F) with 24px margin drag & 8px edge resizing
+- Secondary Light Palette toggleable via Ctrl+Shift+D
+- Fast Exit via Ctrl+Q and context-aware Escape
 - Modern Monospace Stack (JetBrains Mono, Fira Code, Cascadia Code, Iosevka, Source Code Pro)
-  at 13pt default size, scalable on the fly (Ctrl+= / Ctrl+- / Ctrl+Wheel)
+  at 13pt default size, scalable on the fly (Ctrl+= / Ctrl+- / Ctrl+0 / Ctrl+Wheel)
 - Crisp 2px-wide blinking cursor (1000ms cycle) and plain-text-only numeric pasting
 """
 
@@ -21,13 +23,14 @@ import ctypes.util
 import glob
 import os
 import random
+import select
 import shutil
 import subprocess
 import threading
 import time
 import tkinter as tk
 import tkinter.font as tkfont
-from typing import Any, Literal, Mapping, Sequence
+from typing import Literal, Sequence
 
 # ---------------------------------------------------------------------------
 # Paths & Constants
@@ -106,9 +109,9 @@ MONOSPACE_CANDIDATES = [
     "Cascadia Code",
     "Iosevka",
     "Source Code Pro",
+    "Ubuntu Mono",
     "DejaVu Sans Mono",
     "Liberation Mono",
-    "Ubuntu Mono",
     "monospace",
 ]
 
@@ -121,27 +124,25 @@ RESIZE_EDGE_MARGIN = 8
 # ---------------------------------------------------------------------------
 class ClickerBackend:
     """
-    Multi-layered Linux click backend prioritizing Wayland-native methods:
+    Lightweight, high-speed Linux click backend:
     1. Kernel uinput via python3-evdev (fastest, microsecond precision, native Wayland & X11)
-    2. XDG Desktop Portal RemoteDesktop (org.freedesktop.portal.RemoteDesktop via GI/Gio)
-    3. CLI fallbacks (ydotool / dotool / xdotool)
-    4. X11 ctypes libXtst fallback (for XWayland apps if nothing else is permitted)
+    2. Persistent dotool pipe fallback (Wayland/uinput without per-click process spawn)
+    3. X11 ctypes libXtst fallback (for X11 and XWayland windows)
     """
 
     def __init__(self):
-        self.method = "init"
+        self.method = "none"
+        self.ready = False
         self.uinput_dev = None
-        self.portal_proxy = None
-        self.portal_session = None
+        self._dotool_proc = None
         self._x11_display = None
         self._x11_lib = None
         self._xtst_lib = None
-        self._dotool_proc = None
         self._lock = threading.Lock()
         self._init_backends()
 
     def _init_backends(self):
-        # 1. Try python-evdev UInput (Works natively on Wayland & X11)
+        # 1. Try python-evdev UInput (Works natively on Wayland & X11 up to 1000 CPS)
         try:
             from evdev import UInput, ecodes  # type: ignore[import-not-found,reportMissingImports]
 
@@ -151,20 +152,25 @@ class ClickerBackend:
             }
             self.uinput_dev = UInput(events, name="AutoClicker-Virtual-Mouse")  # type: ignore[arg-type]
             self.method = "uinput"
+            self.ready = True
             return
         except Exception:
             self.uinput_dev = None
 
-        # 2. Check for CLI Wayland/X11 tools
-        if shutil.which("ydotool"):
-            self.method = "ydotool"
-            return
+        # 2. Check for persistent dotool daemon pipe
         if shutil.which("dotool"):
-            self.method = "dotool"
-            return
-        if shutil.which("xdotool"):
-            self.method = "xdotool"
-            return
+            try:
+                self._dotool_proc = subprocess.Popen(
+                    ["dotool"],
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                self.method = "dotool"
+                self.ready = True
+                return
+            except Exception:
+                self._dotool_proc = None
 
         # 3. Try X11 libXtst via ctypes (works on X11 and XWayland windows)
         try:
@@ -175,6 +181,7 @@ class ClickerBackend:
                 self._xtst_lib = ctypes.cdll.LoadLibrary(xtst_path)
                 self._x11_lib.XOpenDisplay.restype = ctypes.c_void_p
                 self._x11_lib.XOpenDisplay.argtypes = [ctypes.c_char_p]
+                self._x11_lib.XCloseDisplay.argtypes = [ctypes.c_void_p]
                 self._x11_display = self._x11_lib.XOpenDisplay(None)
                 if self._x11_display:
                     self._xtst_lib.XTestFakeButtonEvent.argtypes = [
@@ -185,178 +192,57 @@ class ClickerBackend:
                     ]
                     self._x11_lib.XFlush.argtypes = [ctypes.c_void_p]
                     self.method = "xtest"
+                    self.ready = True
                     return
         except Exception:
             self._x11_display = None
 
-        self.method = "portal"
+        self.method = "none"
+        self.ready = False
 
-    def setup_wayland_portal_session(self, on_ready_callback=None):
+    def perform_click(
+        self,
+        button_name: str = "Left",
+        double: bool = False,
+        intra_delay: float = 0.015,
+        stop_event: threading.Event | None = None,
+    ) -> bool:
         """
-        Initializes an XDG Desktop Portal RemoteDesktop session on KDE Wayland
-        if uinput wasn't directly accessible without root/input group.
+        Dispatches a single or double mouse click.
+        Returns True if the click was sent to an active backend, False otherwise.
         """
-        if self.uinput_dev is not None:
-            return
+        if not self.ready:
+            return False
 
-        def _worker():
-            try:
-                import gi  # type: ignore[import-not-found,reportMissingImports]
-
-                gi.require_version("Gio", "2.0")
-                from gi.repository import Gio, GLib  # type: ignore[attr-defined]
-
-                bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-                portal = Gio.DBusProxy.new_sync(
-                    bus,
-                    Gio.DBusProxyFlags.NONE,
-                    None,
-                    "org.freedesktop.portal.Desktop",
-                    "/org/freedesktop/portal/desktop",
-                    "org.freedesktop.portal.RemoteDesktop",
-                    None,
-                )
-                if not portal:
-                    return
-
-                session_token = f"autoclicker_sess_{random.randint(1000, 9999)}"
-                sender = bus.get_unique_name().lstrip(":").replace(".", "_")
-
-                def call_portal(method_name, params):
-                    req_tok = f"req_{random.randint(10000, 99999)}"
-                    req_path = f"/org/freedesktop/portal/desktop/request/{sender}/{req_tok}"
-                    event = threading.Event()
-                    result_holder = {}
-
-                    def on_response(conn, sender_name, obj_path, iface, sig, res_params):
-                        resp_code, results = res_params.unpack()
-                        result_holder["code"] = resp_code
-                        result_holder["results"] = results
-                        event.set()
-
-                    sub_id = bus.signal_subscribe(
-                        "org.freedesktop.portal.Desktop",
-                        "org.freedesktop.portal.Request",
-                        "Response",
-                        req_path,
-                        None,
-                        Gio.DBusSignalFlags.NO_MATCH_RULE,
-                        on_response,
-                    )
-                    try:
-                        unpacked = list(params)
-                        unpacked[-1]["handle_token"] = GLib.Variant("s", req_tok)
-                        portal.call_sync(
-                            method_name,
-                            unpacked[0](*unpacked[1:]),
-                            Gio.DBusCallFlags.NONE,
-                            -1,
-                            None,
-                        )
-                        start_wait = time.monotonic()
-                        ctx = GLib.MainContext.default()
-                        while not event.is_set() and (time.monotonic() - start_wait) < 30.0:
-                            while ctx.pending():
-                                ctx.iteration(False)
-                            time.sleep(0.02)
-                    finally:
-                        bus.signal_unsubscribe(sub_id)
-                    return result_holder
-
-                res = call_portal(
-                    "CreateSession",
-                    [
-                        lambda opts: GLib.Variant("(a{sv})", (opts,)),
-                        {"session_handle_token": GLib.Variant("s", session_token)},
-                    ],
-                )
-                if res.get("code") != 0:
-                    return
-                sess_handle = res["results"].get("session_handle")
-                if not sess_handle:
-                    return
-
-                res = call_portal(
-                    "SelectDevices",
-                    [
-                        lambda sh, opts: GLib.Variant("(oa{sv})", (sh, opts)),
-                        sess_handle,
-                        {"types": GLib.Variant("u", 2)},
-                    ],
-                )
-                if res.get("code") != 0:
-                    return
-
-                res = call_portal(
-                    "Start",
-                    [
-                        lambda sh, pw, opts: GLib.Variant("(osa{sv})", (sh, pw, opts)),
-                        sess_handle,
-                        "",
-                        {},
-                    ],
-                )
-                if res.get("code") == 0:
-                    self.portal_proxy = portal
-                    self.portal_session = sess_handle
-                    self.method = "portal"
-                    if on_ready_callback:
-                        on_ready_callback(self.method)
-            except Exception:
-                pass
-
-        threading.Thread(target=_worker, daemon=True).start()
-
-    def perform_click(self, button_name: str = "Left", double: bool = False):
-        """Performs a single or double mouse click using the active backend."""
-        count = 2 if double else 1
         btn_code = BUTTON_MAP.get(button_name, BTN_LEFT)
+        if not self._single_click(button_name, btn_code):
+            return False
 
-        for i in range(count):
+        if double:
+            if intra_delay > 0:
+                if stop_event is not None:
+                    if stop_event.wait(timeout=intra_delay):
+                        return True
+                else:
+                    time.sleep(intra_delay)
             self._single_click(button_name, btn_code)
-            if double and i == 0:
-                time.sleep(0.015)
 
-    def _single_click(self, button_name: str, btn_code: int):
+        return True
+
+    def _single_click(self, button_name: str, btn_code: int) -> bool:
         # 1. evdev UInput
         if self.uinput_dev is not None:
-            with self._lock:
-                self.uinput_dev.write(EV_KEY, btn_code, 1)
-                self.uinput_dev.write(EV_SYN, SYN_REPORT, 0)
-                self.uinput_dev.write(EV_KEY, btn_code, 0)
-                self.uinput_dev.write(EV_SYN, SYN_REPORT, 0)
-            return
-
-        # 2. XDG Portal RemoteDesktop
-        if self.portal_proxy is not None and self.portal_session is not None:
             try:
-                from gi.repository import Gio, GLib  # type: ignore[attr-defined]
-
                 with self._lock:
-                    self.portal_proxy.call_sync(
-                        "NotifyPointerButton",
-                        GLib.Variant("(oa{sv}iu)", (self.portal_session, {}, btn_code, 1)),
-                        Gio.DBusCallFlags.NONE,
-                        -1,
-                        None,
-                    )
-                    self.portal_proxy.call_sync(
-                        "NotifyPointerButton",
-                        GLib.Variant("(oa{sv}iu)", (self.portal_session, {}, btn_code, 0)),
-                        Gio.DBusCallFlags.NONE,
-                        -1,
-                        None,
-                    )
-                return
+                    self.uinput_dev.write(EV_KEY, btn_code, 1)
+                    self.uinput_dev.write(EV_SYN, SYN_REPORT, 0)
+                    self.uinput_dev.write(EV_KEY, btn_code, 0)
+                    self.uinput_dev.write(EV_SYN, SYN_REPORT, 0)
+                return True
             except Exception:
-                pass
+                return False
 
-        # 3. CLI tools
-        if self.method == "ydotool":
-            ydo_btn = {"Left": "0xC0", "Right": "0xC1", "Middle": "0xC2"}.get(button_name, "0xC0")
-            subprocess.run(["ydotool", "click", ydo_btn], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            return
-
+        # 2. Persistent dotool pipe
         if self.method == "dotool":
             do_btn = {"Left": "left", "Right": "right", "Middle": "middle"}.get(button_name, "left")
             with self._lock:
@@ -371,37 +257,49 @@ class ClickerBackend:
                     if self._dotool_proc.stdin:
                         self._dotool_proc.stdin.write(f"click {do_btn}\n".encode())
                         self._dotool_proc.stdin.flush()
+                        return True
                 except Exception:
                     self._dotool_proc = None
-            return
+            return False
 
-        if self.method == "xdotool":
-            xdo_btn = {"Left": "1", "Right": "3", "Middle": "2"}.get(button_name, "1")
-            subprocess.run(["xdotool", "click", xdo_btn], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            return
-
-        # 4. libXtst
+        # 3. libXtst
         if self._x11_display and self._xtst_lib and self._x11_lib:
             x_btn = {"Left": 1, "Middle": 2, "Right": 3}.get(button_name, 1)
-            with self._lock:
-                self._xtst_lib.XTestFakeButtonEvent(self._x11_display, x_btn, 1, 0)
-                self._xtst_lib.XTestFakeButtonEvent(self._x11_display, x_btn, 0, 0)
-                self._x11_lib.XFlush(self._x11_display)
+            try:
+                with self._lock:
+                    self._xtst_lib.XTestFakeButtonEvent(self._x11_display, x_btn, 1, 0)
+                    self._xtst_lib.XTestFakeButtonEvent(self._x11_display, x_btn, 0, 0)
+                    self._x11_lib.XFlush(self._x11_display)
+                return True
+            except Exception:
+                return False
+
+        return False
 
     def close(self):
-        if self.uinput_dev is not None:
-            try:
-                self.uinput_dev.close()
-            except Exception:
-                pass
-        if self._dotool_proc is not None:
-            try:
-                if self._dotool_proc.stdin:
-                    self._dotool_proc.stdin.close()
-                self._dotool_proc.terminate()
-            except Exception:
-                pass
-            self._dotool_proc = None
+        with self._lock:
+            if self.uinput_dev is not None:
+                try:
+                    self.uinput_dev.close()
+                except Exception:
+                    pass
+                self.uinput_dev = None
+
+            if self._dotool_proc is not None:
+                try:
+                    if self._dotool_proc.stdin:
+                        self._dotool_proc.stdin.close()
+                    self._dotool_proc.terminate()
+                except Exception:
+                    pass
+                self._dotool_proc = None
+
+            if self._x11_display and self._x11_lib:
+                try:
+                    self._x11_lib.XCloseDisplay(self._x11_display)
+                except Exception:
+                    pass
+                self._x11_display = None
 
 
 class GlobalHotkeyListener:
@@ -434,7 +332,6 @@ class GlobalHotkeyListener:
         # Attempt 1: Linux evdev /dev/input/event* monitoring (works everywhere on Wayland)
         try:
             import evdev  # type: ignore[import-not-found,reportMissingImports]
-            import select
 
             devices = []
             for path in glob.glob("/dev/input/event*"):
@@ -455,36 +352,46 @@ class GlobalHotkeyListener:
             if devices:
                 self.active_mode = "evdev"
                 fd_to_dev = {dev.fd: dev for dev in devices}
-                while not self._stop_event.is_set():
-                    r, _, _ = select.select(list(fd_to_dev.keys()), [], [], 0.2)
-                    for fd in r:
-                        dev = fd_to_dev.get(fd)
-                        if not dev:
-                            continue
+                try:
+                    while not self._stop_event.is_set() and fd_to_dev:
+                        r, _, _ = select.select(list(fd_to_dev.keys()), [], [], 0.15)
+                        for fd in r:
+                            dev = fd_to_dev.get(fd)
+                            if not dev:
+                                continue
+                            try:
+                                for event in dev.read():
+                                    if event.type == EV_KEY and event.value == 1:
+                                        target_code = KEYCODE_MAP.get(self.hotkey_name, 64)
+                                        if event.code == target_code:
+                                            self.trigger_debounced()
+                            except OSError:
+                                closed_dev = fd_to_dev.pop(fd, None)
+                                if closed_dev:
+                                    try:
+                                        closed_dev.close()
+                                    except Exception:
+                                        pass
+                finally:
+                    for dev in devices:
                         try:
-                            for event in dev.read():
-                                if event.type == EV_KEY and event.value == 1:
-                                    target_code = KEYCODE_MAP.get(self.hotkey_name, 64)
-                                    if event.code == target_code:
-                                        self.trigger_debounced()
-                        except OSError:
-                            fd_to_dev.pop(fd, None)
-                for dev in devices:
-                    try:
-                        dev.close()
-                    except Exception:
-                        pass
+                            dev.close()
+                        except Exception:
+                            pass
                 return
         except Exception:
             pass
 
         # Attempt 2: X11 XQueryKeymap polling
+        x11 = None
+        disp = None
         try:
             x11_path = ctypes.util.find_library("X11")
             if x11_path:
                 x11 = ctypes.cdll.LoadLibrary(x11_path)
                 x11.XOpenDisplay.restype = ctypes.c_void_p
                 x11.XOpenDisplay.argtypes = [ctypes.c_char_p]
+                x11.XCloseDisplay.argtypes = [ctypes.c_void_p]
                 x11.XKeysymToKeycode.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
                 x11.XKeysymToKeycode.restype = ctypes.c_ubyte
                 x11.XQueryKeymap.argtypes = [ctypes.c_void_p, ctypes.c_char * 32]
@@ -507,12 +414,19 @@ class GlobalHotkeyListener:
                                 self.trigger_debounced()
                             was_pressed = is_pressed
                         time.sleep(0.025)
-                    return
         except Exception:
             pass
+        finally:
+            if disp and x11:
+                try:
+                    x11.XCloseDisplay(disp)
+                except Exception:
+                    pass
 
     def stop(self):
         self._stop_event.set()
+        if self._thread.is_alive():
+            self._thread.join(timeout=0.2)
 
 
 # ---------------------------------------------------------------------------
@@ -522,21 +436,22 @@ class AutoClickerApp:
     def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title("Auto Clicker")
-        self.root.geometry("500x400")
-        self.root.minsize(380, 310)
+        self.root.geometry("480x360")
+        self.root.minsize(360, 280)
 
         self._load_window_icon()
 
         # Runtime State
         self.is_running = False
+        self._is_closing = False
         self.click_count = 0
         self.is_dark = True
         self.is_frameless = False
         self._stop_clicking_event = threading.Event()
-        self._click_thread = None
+        self._click_thread: threading.Thread | None = None
 
-        # Drag / Resize State (for Frameless Mode & Margin Dragging)
-        self._drag_mode = None  # "move" or resize edge string ("n", "s", "e", "w", "ne", "nw", "se", "sw")
+        # Drag / Resize State (for Frameless Mode & Alt+Drag)
+        self._drag_mode: str | None = None
         self._drag_start_x = 0
         self._drag_start_y = 0
         self._win_start_x = 0
@@ -544,7 +459,7 @@ class AutoClickerApp:
         self._win_start_w = 0
         self._win_start_h = 0
 
-        # Typography State (13pt default, scalable via Ctrl+= / Ctrl+- / Ctrl+Wheel)
+        # Typography State (13pt default, scalable via Ctrl+= / Ctrl+- / Ctrl+0 / Ctrl+Wheel)
         self.font_family = self._select_monospace_font()
         self.font_size = 13
 
@@ -566,27 +481,32 @@ class AutoClickerApp:
         self._apply_palette()
         self._bind_shortcuts_and_window_events()
 
-        # Initialize backends asynchronously in background thread so UI pops up in < 50ms
-        self.backend = None
-        self.hotkey_listener = None
+        # Initialize backends asynchronously in background thread
+        self.backend: ClickerBackend | None = None
+        self.hotkey_listener: GlobalHotkeyListener | None = None
         self._init_backends_async()
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+
+    def _schedule_ui(self, callback):
+        """Safely schedules a callback on the Tk main loop if the window is still alive."""
+        if self._is_closing:
+            return
+        try:
+            self.root.after(0, callback)
+        except Exception:
+            pass
 
     def _init_backends_async(self):
         def _worker():
             backend = ClickerBackend()
             listener = GlobalHotkeyListener(
                 self.hotkey_name,
-                lambda: self.root.after(0, self.toggle_clicking),
+                lambda: self._schedule_ui(self.toggle_clicking),
             )
             self.backend = backend
             self.hotkey_listener = listener
-            if backend.uinput_dev is None and os.environ.get("XDG_SESSION_TYPE") == "wayland":
-                backend.setup_wayland_portal_session(
-                    on_ready_callback=lambda _m: self.root.after(0, self._refresh_metadata)
-                )
-            self.root.after(0, self._refresh_metadata)
+            self._schedule_ui(self._refresh_metadata)
 
         threading.Thread(target=_worker, daemon=True).start()
 
@@ -626,8 +546,7 @@ class AutoClickerApp:
     def _on_plain_text_paste(self, event):
         """
         Plain-text-only clipboard pasting (insertFromMimeData equivalent):
-        Strips rich formatting, whitespace, and non-digit characters so clipboard
-        contents never pollute or break numeric fields.
+        Strips rich formatting, carriage returns, whitespace, and non-digit characters.
         """
         widget = event.widget
         try:
@@ -648,14 +567,15 @@ class AutoClickerApp:
         widget.insert(tk.INSERT, clean_digits)
         return "break"
 
-    def _get_safe_int(self, var: tk.StringVar, default: int, min_val: int, max_val: int) -> int:
+    def _read_live_int(self, var: tk.StringVar, default: int, min_val: int, max_val: int, clamp_ui: bool = False) -> int:
         raw = var.get().strip()
         if not raw or not raw.isdigit():
-            var.set(str(default))
+            if clamp_ui:
+                var.set(str(default))
             return default
         val = int(raw)
         clamped = max(min_val, min(max_val, val))
-        if clamped != val:
+        if clamp_ui and clamped != val:
             var.set(str(clamped))
         return clamped
 
@@ -679,9 +599,9 @@ class AutoClickerApp:
         self.rows_container = tk.Frame(self.viewport, bd=0, highlightthickness=0)
         self.rows_container.pack(fill=tk.BOTH, expand=True, anchor="nw")
 
-        self.key_labels = []
-        self.value_labels = []
-        self.entries = []
+        self.key_labels: list[tk.Label] = []
+        self.value_labels: list[tuple[tk.Label, bool]] = []
+        self.entries: list[tk.Entry] = []
 
         # Row 1: Speed Mode (CPS vs Interval ms)
         r_mode = self._make_row()
@@ -708,7 +628,7 @@ class AutoClickerApp:
             jitter_right,
             text="off",
             command=self._toggle_jitter,
-            pack_side=tk.LEFT,
+            pack_side="left",
         )
         self.lbl_jitter_sep = tk.Label(jitter_right, text="  ", bd=0, highlightthickness=0, font=self.main_font)
         self.lbl_jitter_sep.pack(side=tk.LEFT)
@@ -743,7 +663,7 @@ class AutoClickerApp:
             rep_right,
             text="infinite",
             command=self._toggle_repeat_mode,
-            pack_side=tk.LEFT,
+            pack_side="left",
         )
         self.lbl_rep_sep = tk.Label(rep_right, text="  ", bd=0, highlightthickness=0, font=self.main_font)
         self.lbl_rep_sep.pack(side=tk.LEFT)
@@ -758,15 +678,6 @@ class AutoClickerApp:
             command=self._cycle_hotkey,
         )
 
-        # Row 8: Surface Theme Option (Matte Dark #141414 default / Soft Light)
-        r_surface = self._make_row()
-        self.lbl_surface_key = self._make_key(r_surface, "surface")
-        self.lbl_surface_val = self._make_interactive_val(
-            r_surface,
-            text="matte dark",
-            command=self._toggle_surface_theme,
-        )
-
         # Bottom-Right Whisper-Quiet Metadata (#585858)
         self.bottom_bar = tk.Frame(self.viewport, bd=0, highlightthickness=0)
         self.bottom_bar.pack(side=tk.BOTTOM, fill=tk.X, pady=(12, 0))
@@ -778,8 +689,10 @@ class AutoClickerApp:
             bd=0,
             highlightthickness=0,
             anchor="e",
+            cursor="hand2",
         )
         self.meta_counter_label.pack(side=tk.RIGHT)
+        self.meta_counter_label.bind("<Button-1>", lambda _e: self.toggle_clicking())
 
         self._sync_conditional_inputs()
 
@@ -857,7 +770,6 @@ class AutoClickerApp:
         ent.bind("<Control-v>", self._on_plain_text_paste)
         ent.bind("<Control-V>", self._on_plain_text_paste)
         ent.bind("<Return>", lambda _e: self.root.focus_set())
-        ent.bind("<Escape>", lambda _e: self.root.focus_set())
         self.entries.append(ent)
         return ent
 
@@ -916,10 +828,10 @@ class AutoClickerApp:
             self.hotkey_listener.set_hotkey(self.hotkey_name)
         self._refresh_metadata()
 
-    def _toggle_surface_theme(self):
+    def _toggle_surface_theme(self, _event=None):
         self.is_dark = not self.is_dark
-        self.lbl_surface_val.configure(text="matte dark" if self.is_dark else "soft light")
         self._apply_palette()
+        return "break"
 
     def _sync_conditional_inputs(self):
         if self.jitter_enabled:
@@ -937,7 +849,7 @@ class AutoClickerApp:
             self.ent_rep.pack_forget()
 
     # -----------------------------------------------------------------------
-    # Palette & Typography Scaling (Ctrl+= / Ctrl+- / Ctrl+Wheel)
+    # Palette & Typography Scaling (Ctrl+= / Ctrl+- / Ctrl+0 / Ctrl+Wheel)
     # -----------------------------------------------------------------------
     def _apply_palette(self):
         p = PALETTE_DARK if self.is_dark else PALETTE_LIGHT
@@ -984,7 +896,7 @@ class AutoClickerApp:
         self._update_status_display()
 
     def _scale_typography(self, delta: int):
-        new_size = max(9, min(26, self.font_size + delta))
+        new_size = max(8, min(48, self.font_size + delta))
         if new_size == self.font_size:
             return
         self.font_size = new_size
@@ -997,8 +909,9 @@ class AutoClickerApp:
     # -----------------------------------------------------------------------
     def toggle_frameless(self, _event=None):
         self.is_frameless = not self.is_frameless
+        self._drag_mode = None
+        self.root.configure(cursor="")
         try:
-            # Attempt transient/override_redirect or WM decorations hint
             self.root.overrideredirect(self.is_frameless)
             if not self.is_frameless:
                 self.root.deiconify()
@@ -1058,6 +971,19 @@ class AutoClickerApp:
         y_win = event.y_root - self.root.winfo_rooty()
 
         alt_held = bool(event.state & 0x0008)  # Mod1 / Alt
+        if alt_held:
+            self._start_drag_or_resize(event, "move")
+            return
+
+        # Margin dragging and 8px edge resizing apply only when frameless
+        if not self.is_frameless:
+            return
+
+        edge = self._detect_resize_edge(x_win, y_win, w, h)
+        if edge:
+            self._start_drag_or_resize(event, edge)
+            return
+
         in_24px_margin = (
             x_win <= VIEWPORT_MARGIN
             or x_win >= (w - VIEWPORT_MARGIN)
@@ -1069,18 +995,8 @@ class AutoClickerApp:
             self.viewport,
             self.rows_container,
             self.bottom_bar,
-            self.meta_counter_label,
         )
-
-        # 1. Check edge resize when in frameless mode
-        if self.is_frameless:
-            edge = self._detect_resize_edge(x_win, y_win, w, h)
-            if edge:
-                self._start_drag_or_resize(event, edge)
-                return
-
-        # 2. Move window if Alt+Drag OR dragging the 24px margin / empty canvas
-        if alt_held or in_24px_margin or (self.is_frameless and is_bg_widget):
+        if in_24px_margin or is_bg_widget:
             self._start_drag_or_resize(event, "move")
 
     def _start_drag_or_resize(self, event, mode: str):
@@ -1104,8 +1020,8 @@ class AutoClickerApp:
             self.root.geometry(f"+{nx}+{ny}")
             return
 
-        # Edge resizing
-        min_w, min_h = 380, 310
+        # Edge resizing (frameless mode)
+        min_w, min_h = 360, 280
         nx = self._win_start_x
         ny = self._win_start_y
         nw = self._win_start_w
@@ -1131,7 +1047,33 @@ class AutoClickerApp:
     def _on_mouse_release(self, _event):
         self._drag_mode = None
 
+    def _on_escape(self, _event=None):
+        """
+        Context-aware Escape (per DESKTOP-STYLE.md):
+        - If an Entry has focus, unfocus to the root canvas.
+        - If currently clicking, stop clicking.
+        - Otherwise, exit immediately.
+        """
+        focused = self.root.focus_get()
+        if isinstance(focused, tk.Entry):
+            self.root.focus_set()
+            return "break"
+        if self.is_running:
+            self.stop_clicking()
+            return "break"
+        self.on_close()
+        return "break"
+
     def _bind_shortcuts_and_window_events(self):
+        # Context-aware Escape & Fast Exit (Ctrl+Q)
+        self.root.bind("<Escape>", self._on_escape)
+        self.root.bind("<Control-q>", lambda _e: self.on_close())
+        self.root.bind("<Control-Q>", lambda _e: self.on_close())
+
+        # Dark / Light surface toggle: Ctrl+Shift+D
+        self.root.bind("<Control-Shift-D>", self._toggle_surface_theme)
+        self.root.bind("<Control-Shift-d>", self._toggle_surface_theme)
+
         # Frameless mode shortcuts: F11 and Ctrl+Shift+F
         self.root.bind("<F11>", self.toggle_frameless)
         self.root.bind("<Control-Shift-F>", self.toggle_frameless)
@@ -1172,7 +1114,12 @@ class AutoClickerApp:
         self._refresh_metadata()
 
     def _refresh_metadata(self):
-        state_word = "active" if self.is_running else "idle"
+        if self._is_closing:
+            return
+        if self.backend is not None and not self.backend.ready:
+            state_word = "no input access"
+        else:
+            state_word = "active" if self.is_running else "idle"
         unit = "click" if self.click_count == 1 else "clicks"
         frame_tag = " · frameless" if self.is_frameless else ""
         self.meta_counter_label.configure(
@@ -1180,8 +1127,32 @@ class AutoClickerApp:
         )
 
     # -----------------------------------------------------------------------
-    # Core Clicking Engine Loop
+    # Core Clicking Engine Loop (Reads Live Configuration)
     # -----------------------------------------------------------------------
+    def _get_live_click_config(self, clamp_ui: bool = False) -> tuple[float, float, str, bool, int]:
+        """Reads current UI settings safely so changes take effect immediately while running."""
+        if self.speed_mode == "cps":
+            cps = self._read_live_int(self.cps_var, default=10, min_val=1, max_val=1000, clamp_ui=clamp_ui)
+            base_interval_sec = 1.0 / float(cps)
+        else:
+            ms = self._read_live_int(self.ms_var, default=100, min_val=1, max_val=3600000, clamp_ui=clamp_ui)
+            base_interval_sec = float(ms) / 1000.0
+
+        jitter_sec = 0.0
+        if self.jitter_enabled:
+            jitter_ms = self._read_live_int(self.jitter_ms_var, default=5, min_val=0, max_val=5000, clamp_ui=clamp_ui)
+            jitter_sec = float(jitter_ms) / 1000.0
+
+        max_clicks = 0
+        if self.repeat_mode == "fixed":
+            max_clicks = self._read_live_int(
+                self.repeat_count_var, default=100, min_val=1, max_val=10000000, clamp_ui=clamp_ui
+            )
+
+        button_name = self.button_name
+        is_double = self.click_type == "Double"
+        return base_interval_sec, jitter_sec, button_name, is_double, max_clicks
+
     def toggle_clicking(self):
         if self.is_running:
             self.stop_clicking()
@@ -1191,25 +1162,12 @@ class AutoClickerApp:
     def start_clicking(self):
         if self.is_running:
             return
+        if self.backend is not None and not self.backend.ready:
+            self._refresh_metadata()
+            return
 
-        if self.speed_mode == "cps":
-            cps = self._get_safe_int(self.cps_var, default=10, min_val=1, max_val=1000)
-            base_interval_sec = 1.0 / float(cps)
-        else:
-            ms = self._get_safe_int(self.ms_var, default=100, min_val=1, max_val=3600000)
-            base_interval_sec = float(ms) / 1000.0
-
-        jitter_sec = 0.0
-        if self.jitter_enabled:
-            jitter_ms = self._get_safe_int(self.jitter_ms_var, default=5, min_val=0, max_val=5000)
-            jitter_sec = float(jitter_ms) / 1000.0
-
-        max_clicks = 0
-        if self.repeat_mode == "fixed":
-            max_clicks = self._get_safe_int(self.repeat_count_var, default=100, min_val=1, max_val=10000000)
-
-        button_name = self.button_name
-        is_double = self.click_type == "Double"
+        # Sanitize and clamp any out-of-range UI fields on start
+        self._get_live_click_config(clamp_ui=True)
 
         self.click_count = 0
         self.is_running = True
@@ -1218,7 +1176,6 @@ class AutoClickerApp:
 
         self._click_thread = threading.Thread(
             target=self._click_worker,
-            args=(base_interval_sec, jitter_sec, button_name, is_double, max_clicks),
             daemon=True,
         )
         self._click_thread.start()
@@ -1230,29 +1187,40 @@ class AutoClickerApp:
         self.is_running = False
         self._update_status_display()
 
-    def _click_worker(
-        self,
-        base_interval: float,
-        jitter_sec: float,
-        button_name: str,
-        is_double: bool,
-        max_clicks: int,
-    ):
+    def _click_worker(self):
         next_time = time.perf_counter()
         ui_last_update = 0.0
 
         while not self._stop_clicking_event.is_set():
+            base_interval, jitter_sec, button_name, is_double, max_clicks = self._get_live_click_config(
+                clamp_ui=False
+            )
+
+            # Scale double-click gap dynamically so high CPS (> 65 CPS) is never bottlenecked
+            intra_delay = min(0.015, base_interval * 0.35) if is_double else 0.0
+
+            dispatched = False
             if self.backend:
-                self.backend.perform_click(button_name=button_name, double=is_double)
-            self.click_count += 1
+                dispatched = self.backend.perform_click(
+                    button_name=button_name,
+                    double=is_double,
+                    intra_delay=intra_delay,
+                    stop_event=self._stop_clicking_event,
+                )
+
+            if dispatched:
+                self.click_count += 1
+            else:
+                self._schedule_ui(self.stop_clicking)
+                break
 
             now = time.perf_counter()
             if now - ui_last_update >= 0.065:
                 ui_last_update = now
-                self.root.after(0, self._refresh_metadata)
+                self._schedule_ui(self._refresh_metadata)
 
             if max_clicks > 0 and self.click_count >= max_clicks:
-                self.root.after(0, self.stop_clicking)
+                self._schedule_ui(self.stop_clicking)
                 break
 
             delay = base_interval
@@ -1263,30 +1231,38 @@ class AutoClickerApp:
             next_time += delay
             sleep_duration = next_time - time.perf_counter()
             if sleep_duration > 0:
-                # Coarse wait using event for intervals > 4ms
                 if sleep_duration > 0.004:
                     if self._stop_clicking_event.wait(timeout=sleep_duration - 0.002):
                         break
-                # Fine-grained microsecond spin for remainder
                 while time.perf_counter() < next_time:
                     if self._stop_clicking_event.is_set():
                         break
             else:
                 next_time = time.perf_counter()
 
-        self.root.after(0, self._refresh_metadata)
+        self._schedule_ui(self._refresh_metadata)
 
     def on_close(self):
-        self.stop_clicking()
+        if self._is_closing:
+            return
+        self._is_closing = True
+        self._stop_clicking_event.set()
+        self.is_running = False
+
+        if self._click_thread and self._click_thread.is_alive():
+            self._click_thread.join(timeout=0.15)
         if self.hotkey_listener:
             self.hotkey_listener.stop()
         if self.backend:
             self.backend.close()
-        self.root.destroy()
+        try:
+            self.root.destroy()
+        except Exception:
+            pass
 
 
 def main():
-    root = tk.Tk()
+    root = tk.Tk(className="Auto Clicker")
     AutoClickerApp(root)
     root.mainloop()
 

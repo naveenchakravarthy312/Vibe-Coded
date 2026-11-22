@@ -25,7 +25,10 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.ui.text.style.TextOverflow
 import com.example.ssh.ConnectionMetrics
+import com.example.terminal.TerminalProgress
 import com.example.ui.theme.ScratchpadMonoFontFamily
 
 @Composable
@@ -39,6 +42,7 @@ fun TerminalAccessoryBar(
     hapticEnabled: Boolean,
     isAmoled: Boolean = false,
     onToggleAmoled: () -> Unit = {},
+    activeProgress: TerminalProgress? = null,
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
@@ -57,6 +61,50 @@ fun TerminalAccessoryBar(
     ) {
         // Hairline top border
         HorizontalDivider(thickness = 1.dp, color = MaterialTheme.colorScheme.outline)
+
+        // Live Command Progress Bar Banner
+        AnimatedVisibility(visible = activeProgress != null) {
+            activeProgress?.let { progress ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .testTag("terminal_progress_banner"),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = progress.label,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "${(progress.percentage * 100).toInt()}%",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    LinearProgressIndicator(
+                        progress = { progress.percentage },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(RoundedCornerShape(2.dp)),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.outline
+                    )
+                }
+            }
+        }
 
         // Metrics & Quiet info strip
         Row(

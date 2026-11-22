@@ -1,0 +1,122 @@
+{
+  "schema_version": 1,
+  "apps": [
+    {
+      "id": "google-chrome",
+      "name": "Google Chrome",
+      "category": "Parent Essentials",
+      "method": "winget",
+      "winget_id": "Google.Chrome",
+      "portable_url": "https://dl.google.com/chrome/install/ChromeStandaloneSetup64.exe",
+      "portable_folder": "GoogleChrome",
+      "description": "Fast, familiar web browser with automatic security updates.",
+      "arm64_safe": true,
+      "version": "131.0.6778"
+    },
+    {
+      "id": "microsoft-edge",
+      "name": "Microsoft Edge",
+      "category": "Parent Essentials",
+      "method": "winget",
+      "winget_id": "Microsoft.Edge",
+      "description": "Native Chromium browser & shared WebView2 platform.",
+      "arm64_safe": true,
+      "version": "131.0.2903"
+    },
+    {
+      "id": "oplus-connect",
+      "name": "O+ Connect",
+      "category": "Parent Essentials",
+      "method": "direct_url",
+      "portable_url": "https://connect.oppo.com/downloads/OPlusConnect_Windows_Portable.zip",
+      "portable_folder": "OPlusConnect",
+      "description": "Cross-device file transfer, clipboard sync, and phone mirroring.",
+      "arm64_safe": true,
+      "version": "2.4.1"
+    },
+    {
+      "id": "vlc-media-player",
+      "name": "VLC Media Player",
+      "category": "Parent Essentials",
+      "method": "winget",
+      "winget_id": "VideoLAN.VLC",
+      "portable_url": "https://get.videolan.org/vlc/3.0.21/win64/vlc-3.0.21-win64.zip",
+      "portable_folder": "VLC",
+      "description": "Plays any video, family DVD rip, or audio file without extra codecs.",
+      "arm64_safe": true,
+      "version": "3.0.21"
+    },
+    {
+      "id": "7zip",
+      "name": "7-Zip",
+      "category": "Parent Essentials",
+      "method": "winget",
+      "winget_id": "7zip.7zip",
+      "portable_url": "https://www.7-zip.org/a/7z2408-arm64.exe",
+      "portable_folder": "7-Zip",
+      "description": "Lightweight archive manager for ZIP, RAR, and 7z files.",
+      "arm64_safe": true,
+      "version": "24.08"
+    },
+    {
+      "id": "flow-launcher",
+      "name": "Flow Launcher",
+      "category": "Portable / Power Tools",
+      "method": "direct_url",
+      "winget_id": "Flow-Launcher.Flow-Launcher",
+      "portable_url": "https://github.com/Flow-Launcher/Flow.Launcher/releases/latest/download/Flow-Launcher-Portable.zip",
+      "portable_folder": "FlowLauncher",
+      "description": "Keyboard-driven app launcher and instant file finder.",
+      "arm64_safe": true,
+      "version": "1.19.2"
+    },
+    {
+      "id": "altsnap",
+      "name": "AltSnap",
+      "category": "Portable / Power Tools",
+      "method": "direct_url",
+      "winget_id": "RamonUnch.AltSnap",
+      "portable_url": "https://github.com/RamonUnch/AltSnap/releases/latest/download/AltSnap1.65-x64-bin.zip",
+      "portable_folder": "AltSnap",
+      "description": "Move and resize any Windows window cleanly with Alt + Drag.",
+      "arm64_safe": true,
+      "version": "1.65"
+    },
+    {
+      "id": "quicklook",
+      "name": "QuickLook",
+      "category": "Portable / Power Tools",
+      "method": "winget",
+      "winget_id": "QL-Win.QuickLook",
+      "portable_url": "https://github.com/QL-Win/QuickLook/releases/latest/download/QuickLook-3.7.3-Portable.zip",
+      "portable_folder": "QuickLook",
+      "description": "Press Spacebar in File Explorer for instant macOS-style file previews.",
+      "arm64_safe": true,
+      "version": "3.7.3"
+    },
+    {
+      "id": "zen-browser",
+      "name": "Zen Browser",
+      "category": "Portable / Power Tools",
+      "method": "winget",
+      "winget_id": "Zen-Team.Zen-Browser",
+      "portable_url": "https://github.com/zen-browser/desktop/releases/latest/download/zen.win-specific.zip",
+      "portable_folder": "ZenBrowser",
+      "description": "Calm, privacy-focused Gecko browser with vertical tabs and split view.",
+      "arm64_safe": true,
+      "version": "1.0.2-b"
+    },
+    {
+      "id": "everything-search",
+      "name": "Everything Search",
+      "category": "Portable / Power Tools",
+      "method": "direct_url",
+      "winget_id": "voidtools.Everything",
+      "portable_url": "https://www.voidtools.com/Everything-1.4.1.1026.x64.zip",
+      "portable_folder": "Everything",
+      "description": "Instant NTFS filename search across the entire drive in milliseconds.",
+      "arm64_safe": true,
+      "version": "1.4.1"
+    }
+  ]
+}

@@ -28,7 +28,6 @@ try:
         QEvent,
         QMimeData,
         QPoint,
-        QRectF,
         Qt,
         QTimer,
         pyqtSignal,
@@ -48,9 +47,6 @@ from PyQt6.QtGui import (  # type: ignore[import-not-found,reportMissingImports]
     QFontMetricsF,
     QIcon,
     QKeySequence,
-    QPainter,
-    QPainterPath,
-    QPixmap,
     QShortcut,
     QTextCharFormat,
     QTextCursor,
@@ -333,104 +329,35 @@ class ScratchpadRepository:
 # ---------------------------------------------------------------------------
 # App Icon & Font Helpers
 # ---------------------------------------------------------------------------
-def _render_placeholder_pixmap() -> QPixmap:
-    """Render a 256x256 YAMIS-style (Yet Another Monochrome Icon Set) glyph in memory."""
-    pixmap = QPixmap(256, 256)
-    pixmap.fill(Qt.GlobalColor.transparent)
-    painter = QPainter(pixmap)
-    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-    scale = 256.0 / 16.933
-    painter.scale(scale, scale)
-
-    path = QPainterPath()
-    path.setFillRule(Qt.FillRule.OddEvenFill)
-
-    x1, y1 = 3.0153871, 1.4551795
-    x2, y2 = 13.917613, 15.47782
-    r = 0.73462
-    xcut, ycut = 11.192056, 4.1807359
-
-    path.moveTo(x1 + r, y1)
-    path.lineTo(xcut, y1)
-    path.lineTo(xcut, ycut)
-    path.lineTo(x2, ycut)
-    path.lineTo(x2, y2 - r)
-    path.arcTo(QRectF(x2 - 2 * r, y2 - 2 * r, 2 * r, 2 * r), 0, -90)
-    path.lineTo(x1 + r, y2)
-    path.arcTo(QRectF(x1, y2 - 2 * r, 2 * r, 2 * r), -90, -90)
-    path.lineTo(x1, y1 + r)
-    path.arcTo(QRectF(x1, y1, 2 * r, 2 * r), 180, -90)
-    path.closeSubpath()
-
-    path.addRect(QRectF(3.7941994, y1, 0.3896932, 15.082388 - y1))
-
-    wedge = QPainterPath()
-    wedge.moveTo(xcut, y1)
-    wedge.lineTo(x2, ycut)
-    wedge.lineTo(x2, y1 + r)
-    wedge.arcTo(QRectF(x2 - 2 * r, y1, 2 * r, 2 * r), 0, 90)
-    wedge.closeSubpath()
-    path.addPath(wedge)
-
-    h = 0.3896931
-    rows = [
-        (3.0122304, [(4.9621311, 1.946744), (7.2985683, 1.5570509), (9.2453124, 1.7521846)]),
-        (3.7910428, [(4.9621311, 2.7255564), (8.0773808, 1.1679316), (9.634432, 1.363065)]),
-        (4.5698552, [(4.9621311, 3.1152497), (8.4665, 1.946744), (10.802363, 1.557625)]),
-        (5.3486676, [(4.9621311, 2.3364372), (7.6876875, 1.1679317), (9.2453124, 1.5570506), (11.192056, 1.167932)]),
-        (6.12748, [(4.9621311, 1.5691032), (6.9088751, 2.7255569)]),
-        (7.6845309, [(4.9621311, 3.8934881), (9.2453124, 1.9467436), (11.581176, 0.778812)]),
-        (8.4633433, [(4.9621311, 1.5691032), (6.9088751, 3.1152499), (10.413244, 1.568529)]),
-        (9.2421558, [(4.9621311, 2.7255564)]),
-        (10.799206, [(4.9621311, 3.8934881), (9.2453124, 1.5570506), (11.192056, 1.167932)]),
-        (11.578019, [(4.9621311, 2.7255564), (8.0773808, 1.5570512), (10.024125, 2.335863)]),
-        (12.356831, [(4.9621311, 1.5576248), (6.9088751, 3.1152499)]),
-        (13.135644, [(4.9621311, 2.7255564), (8.0773808, 2.7249822)]),
-    ]
-    for y, segments in rows:
-        for x, w in segments:
-            path.addRect(QRectF(x, y, w, h))
-
-    painter.setPen(Qt.PenStyle.NoPen)
-    painter.setBrush(QColor("#d8dee9"))
-    painter.drawPath(path)
-    painter.end()
-    return pixmap
-
-
 def load_app_icon() -> QIcon:
-    """Load custom icon from Notepad/icon.{png,svg,ico}, or render a fallback in memory."""
+    """Load custom icon from Notepad/icon.{png,svg,ico}."""
     for filename in ICON_CANDIDATES:
         icon_path = APP_DIR / filename
         if icon_path.is_file():
             icon = QIcon(str(icon_path))
             if not icon.isNull():
                 return icon
-    return QIcon(_render_placeholder_pixmap())
+    return QIcon()
 
 
 _fonts_loaded = False
 
+
 def load_bundled_fonts() -> None:
-    """Load bundled TTF fonts asynchronously so window launch is instantaneous."""
+    """Load bundled TTF fonts synchronously on the Qt main GUI thread."""
     global _fonts_loaded
-    if _fonts_loaded:
+    if _fonts_loaded or QApplication.instance() is None:
         return
     _fonts_loaded = True
 
-    def _worker():
-        candidate_dirs = [
-            APP_DIR / "fonts",
-            APP_DIR.parent.parent / "Android" / "scratchpad" / "app" / "src" / "main" / "res" / "font",
-        ]
-        for folder in candidate_dirs:
-            if folder.is_dir():
-                for ttf in folder.glob("*.ttf"):
-                    QFontDatabase.addApplicationFont(str(ttf))
-
-    import threading
-    threading.Thread(target=_worker, daemon=True).start()
+    candidate_dirs = [
+        APP_DIR / "fonts",
+        APP_DIR.parent.parent / "Android" / "scratchpad" / "app" / "src" / "main" / "res" / "font",
+    ]
+    for folder in candidate_dirs:
+        if folder.is_dir():
+            for ttf in sorted(folder.glob("*.ttf")):
+                QFontDatabase.addApplicationFont(str(ttf))
 
 
 def select_font(size: int = DEFAULT_FONT_SIZE, is_monospace: bool = True) -> QFont:
@@ -528,6 +455,19 @@ class EphemeralEditor(QPlainTextEdit):
         super().wheelEvent(e)
 
 
+class ClickableLabel(QLabel):
+    """QLabel subclass that emits a clicked signal on left mouse press."""
+
+    clicked = pyqtSignal()
+
+    def mousePressEvent(self, ev: Any) -> None:
+        if ev is not None and ev.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+            ev.accept()
+            return
+        super().mousePressEvent(ev)
+
+
 # ---------------------------------------------------------------------------
 # Zero-Chrome Auto-Clicker-Style Views (Saved Notes Library & Shortcut Help)
 # ---------------------------------------------------------------------------
@@ -537,7 +477,7 @@ class SavedNotesView(QWidget):
     - 100% flat #141414 canvas, 24px margins, zero borders/buttons
     - Whisper-quiet #585858 labels and #e0e0e0 values
     - Keyboard driven: Type to search, Up/Down to navigate, Enter to load,
-      Ctrl+P to pin, Ctrl+E to export .txt/.md, Del/Ctrl+D to delete, Esc to exit.
+      Ctrl+P to pin, Ctrl+E to export .txt/.md, Del/Ctrl+D to delete, Ctrl+Z to undo, Esc to exit.
     """
 
     def __init__(
@@ -547,6 +487,7 @@ class SavedNotesView(QWidget):
         on_export_note,
         on_delete_note,
         on_close,
+        on_undo_delete=None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
@@ -555,11 +496,12 @@ class SavedNotesView(QWidget):
         self._on_export_note = on_export_note
         self._on_delete_note = on_delete_note
         self._on_close = on_close
+        self._on_undo_delete = on_undo_delete
 
         self._notes: list[SavedNote] = []
         self._selected_idx: int = 0
         self._active_note_id: int | None = None
-        self._row_labels: list[QLabel] = []
+        self._row_labels: list[ClickableLabel] = []
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(PADDING_PX, PADDING_PX, PADDING_PX, PADDING_PX)
@@ -614,6 +556,10 @@ class SavedNotesView(QWidget):
         self._selected_idx = 0
         self.refresh_list()
 
+    def _activate_row(self, index: int) -> None:
+        if 0 <= index < len(self._notes):
+            self._on_select_note(self._notes[index])
+
     def refresh_list(self) -> None:
         self._notes = self.repo.list_notes(self.search_input.text())
 
@@ -638,10 +584,12 @@ class SavedNotesView(QWidget):
         bold_font = QFont(font)
         bold_font.setBold(True)
 
-        # Allocate extra labels in pool if needed
+        # Allocate extra clickable labels in pool if needed
         while len(self._row_labels) < len(self._notes):
-            lbl = QLabel(self.rows_widget)
+            row_idx = len(self._row_labels)
+            lbl = ClickableLabel(self.rows_widget)
             lbl.setCursor(Qt.CursorShape.PointingHandCursor)
+            lbl.clicked.connect(lambda i=row_idx: self._activate_row(i))
             # Insert before the trailing stretch if present
             last_item = self.rows_layout.itemAt(self.rows_layout.count() - 1) if self.rows_layout.count() > 0 else None
             if last_item is not None and last_item.spacerItem() is not None:
@@ -669,7 +617,6 @@ class SavedNotesView(QWidget):
                 preview = preview[:36] + "…"
             meta_str = f"{note.word_count}w · {format_timestamp(note.updated_at)}"
             row_lbl.setText(f"{title_col}  {preview:<38}  {meta_str}")
-            row_lbl.mousePressEvent = lambda _e, n=note: self._on_select_note(n)  # type: ignore[method-assign]
             row_lbl.show()
 
         # Hide any unused pooled labels
@@ -751,6 +698,9 @@ class SavedNotesView(QWidget):
                     self._on_delete_note(self._notes[self._selected_idx])
                     self.refresh_list()
                 return True
+            if (mods & Qt.KeyboardModifier.ControlModifier) and key == Qt.Key.Key_Z:
+                if self._on_undo_delete is not None and self._on_undo_delete():
+                    return True
         return super().eventFilter(watched, event)
 
 
@@ -861,6 +811,8 @@ class EphemeralPadWindow(QMainWindow):
         self._show_find_bar: bool = False
         self._find_matches: list[tuple[int, int]] = []
         self._current_match_idx: int = -1
+        self._suppress_find_recompute: bool = False
+        self._has_closed: bool = False
 
         # Inline Save Note prompt state
         self._show_save_prompt: bool = False
@@ -943,7 +895,7 @@ class EphemeralPadWindow(QMainWindow):
         self.find_input = QLineEdit(self.find_bar)
         self.find_input.setFrame(False)
         self.find_input.setPlaceholderText("text…")
-        self.find_input.textChanged.connect(self._recompute_find_matches)
+        self.find_input.textChanged.connect(lambda _text: self._recompute_find_matches())
         self.find_input.installEventFilter(self)
         find_layout.addWidget(self.find_input, 1)
 
@@ -982,12 +934,12 @@ class EphemeralPadWindow(QMainWindow):
         ed_layout.addWidget(self.save_bar)
 
         # Whisper-quiet bottom-right metadata counter (#585858)
-        self.word_count_label = QLabel("0 words", self.editor)
+        self.word_count_label = ClickableLabel("0 words", self.editor)
         self.word_count_label.setCursor(Qt.CursorShape.PointingHandCursor)
         self.word_count_label.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
-        self.word_count_label.mousePressEvent = lambda _e: self.cycle_stat_display_mode()  # type: ignore[method-assign]
+        self.word_count_label.clicked.connect(self.cycle_stat_display_mode)
 
         self.stack.addWidget(self.editor_page)
 
@@ -998,6 +950,7 @@ class EphemeralPadWindow(QMainWindow):
             on_export_note=self.export_saved_note_to_file,
             on_delete_note=self.delete_saved_note,
             on_close=self._return_to_editor,
+            on_undo_delete=self.undo_delete_note,
             parent=self.stack,
         )
         self.stack.addWidget(self.library_view)
@@ -1018,6 +971,11 @@ class EphemeralPadWindow(QMainWindow):
         self._draft_timer = QTimer(self)
         self._draft_timer.setSingleShot(True)
         self._draft_timer.timeout.connect(self._flush_draft_state)
+
+        # Debounced word-count timer for large documents
+        self._stats_timer = QTimer(self)
+        self._stats_timer.setSingleShot(True)
+        self._stats_timer.timeout.connect(self._update_word_count)
 
     # -----------------------------------------------------------------------
     # Palette & Typography (Matte Dark #141414 / Soft Light #f2f2f0)
@@ -1201,6 +1159,7 @@ class EphemeralPadWindow(QMainWindow):
             return
 
         self._active_file_path = target
+        self._active_note_id = None
         self._active_note_title = target.stem or target.name
         self._is_modified = False
         self._save_draft_state()
@@ -1342,7 +1301,7 @@ class EphemeralPadWindow(QMainWindow):
         self._save_draft_state()
         self.show_status("deleted · ctrl+z undo")
 
-    def undo_delete_note(self) -> None:
+    def undo_delete_note(self) -> bool:
         if self._last_deleted_note is not None:
             restored = self._last_deleted_note
             self._last_deleted_note = None
@@ -1350,6 +1309,8 @@ class EphemeralPadWindow(QMainWindow):
             if self.stack.currentIndex() == 1:
                 self.library_view.refresh_list()
             self.show_status(f"restored {restored.title.lower()}")
+            return True
+        return False
 
     def new_scratchpad(self) -> None:
         self._suppress_modified = True
@@ -1412,7 +1373,11 @@ class EphemeralPadWindow(QMainWindow):
             self.editor.setFocus()
         self._position_word_count()
 
-    def _recompute_find_matches(self) -> None:
+    def _recompute_find_matches(
+        self,
+        target_pos: int | None = None,
+        scroll_to_active: bool = True,
+    ) -> None:
         query = self.find_input.text()
         self._find_matches.clear()
 
@@ -1424,16 +1389,24 @@ class EphemeralPadWindow(QMainWindow):
                     cursor = doc.find(query, pos)
                     if cursor.isNull():
                         break
-                    self._find_matches.append((cursor.selectionStart(), cursor.selectionEnd()))
-                    pos = cursor.selectionEnd()
+                    start = cursor.selectionStart()
+                    end = cursor.selectionEnd()
+                    self._find_matches.append((start, end))
+                    pos = end if end > pos else pos + 1
 
         if self._find_matches:
-            if self._current_match_idx < 0 or self._current_match_idx >= len(self._find_matches):
+            if target_pos is not None:
+                next_idx = next(
+                    (i for i, (m_start, _m_end) in enumerate(self._find_matches) if m_start >= target_pos),
+                    0,
+                )
+                self._current_match_idx = next_idx
+            elif self._current_match_idx < 0 or self._current_match_idx >= len(self._find_matches):
                 self._current_match_idx = 0
             self.match_count_lbl.setText(
                 f"{self._current_match_idx + 1}/{len(self._find_matches)}"
             )
-            self._highlight_find_matches(scroll_to_active=True)
+            self._highlight_find_matches(scroll_to_active=scroll_to_active)
         else:
             self._current_match_idx = -1
             self.match_count_lbl.setText("0/0")
@@ -1488,26 +1461,35 @@ class EphemeralPadWindow(QMainWindow):
             return
         start, end = self._find_matches[self._current_match_idx]
         replacement = self.replace_input.text()
+        after_pos = start + len(replacement)
         cur = self.editor.textCursor()
-        cur.beginEditBlock()
-        cur.setPosition(start)
-        cur.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
-        cur.insertText(replacement)
-        cur.endEditBlock()
-        self._recompute_find_matches()
+        self._suppress_find_recompute = True
+        try:
+            cur.beginEditBlock()
+            cur.setPosition(start)
+            cur.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
+            cur.insertText(replacement)
+            cur.endEditBlock()
+        finally:
+            self._suppress_find_recompute = False
+        self._recompute_find_matches(target_pos=after_pos, scroll_to_active=True)
 
     def replace_all_matches(self) -> None:
         if not self._find_matches:
             return
         replacement = self.replace_input.text()
         cur = self.editor.textCursor()
-        cur.beginEditBlock()
-        for start, end in reversed(self._find_matches):
-            cur.setPosition(start)
-            cur.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
-            cur.insertText(replacement)
-        cur.endEditBlock()
-        self._recompute_find_matches()
+        self._suppress_find_recompute = True
+        try:
+            cur.beginEditBlock()
+            for start, end in reversed(self._find_matches):
+                cur.setPosition(start)
+                cur.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
+                cur.insertText(replacement)
+            cur.endEditBlock()
+        finally:
+            self._suppress_find_recompute = False
+        self._recompute_find_matches(scroll_to_active=False)
         self.show_status("replaced all")
 
     # -----------------------------------------------------------------------
@@ -1518,9 +1500,15 @@ class EphemeralPadWindow(QMainWindow):
             self._is_modified = True
             # Debounce disk persistence to prevent fsync on every keystroke
             self._draft_timer.start(750)
-        if self._show_find_bar:
-            self._recompute_find_matches()
-        self._update_word_count()
+        if self._show_find_bar and not self._suppress_find_recompute:
+            self._recompute_find_matches(scroll_to_active=False)
+        doc = self.editor.document()
+        chars = max(0, doc.characterCount() - 1) if doc is not None else 0
+        if chars >= 8192:
+            self._stats_timer.start(150)
+        else:
+            self._stats_timer.stop()
+            self._update_word_count()
 
     def _save_draft_state(self) -> None:
         """Immediately schedule/flush draft persistence."""
@@ -1552,22 +1540,19 @@ class EphemeralPadWindow(QMainWindow):
         self._update_word_count()
 
     def _update_word_count(self) -> None:
+        self._stats_timer.stop()
         doc = self.editor.document()
         # characterCount() includes end-of-block characters, max(0, -1) gives exact text length
         chars = max(0, doc.characterCount() - 1) if doc is not None else 0
         lines = max(1, doc.blockCount()) if doc is not None else 1
+        text = self.editor.toPlainText()
+        words = len(text.split()) if text.strip() else 0
 
         if self._stat_display_mode == 0:
-            text = self.editor.toPlainText()
-            words = len(text.split()) if text.strip() else 0
             stats_part = "1 word" if words == 1 else f"{words} words"
         elif self._stat_display_mode == 1:
-            text = self.editor.toPlainText()
-            words = len(text.split()) if text.strip() else 0
             stats_part = f"{words} words · {chars} chars"
         else:
-            text = self.editor.toPlainText()
-            words = len(text.split()) if text.strip() else 0
             stats_part = f"{words}w · {chars}c · {lines}L · {self._font_size}pt"
 
         parts: list[str] = []
@@ -1664,14 +1649,12 @@ class EphemeralPadWindow(QMainWindow):
         self._bind_shortcuts(
             [
                 QKeySequence("Ctrl+="),
-                QKeySequence("Ctrl++"),
                 QKeySequence(QKeySequence.StandardKey.ZoomIn),
             ],
             lambda: self.adjust_font_size(1),
         )
         self._bind_shortcuts(
             [
-                QKeySequence("Ctrl+-"),
                 QKeySequence(QKeySequence.StandardKey.ZoomOut),
             ],
             lambda: self.adjust_font_size(-1),
@@ -1810,23 +1793,33 @@ class EphemeralPadWindow(QMainWindow):
         return super().eventFilter(watched, event)
 
     def _wipe_memory(self) -> None:
-        doc = self.editor.document()
-        if doc is not None:
-            doc.clearUndoRedoStacks()
-            doc.clear()
-        self.editor.clear()
+        self._suppress_modified = True
+        try:
+            doc = self.editor.document()
+            if doc is not None:
+                doc.clearUndoRedoStacks()
+                doc.clear()
+            self.editor.clear()
+        finally:
+            self._suppress_modified = False
         gc.collect()
 
-    def instant_quit(self) -> None:
+    def _finalize_close(self) -> None:
+        if self._has_closed:
+            return
+        self._has_closed = True
+        self._stats_timer.stop()
         self._save_draft_state()
         self._wipe_memory()
+
+    def instant_quit(self) -> None:
+        self._finalize_close()
         self.close()
         QApplication.quit()
 
     def closeEvent(self, a0: Any) -> None:
         event = a0
-        self._save_draft_state()
-        self._wipe_memory()
+        self._finalize_close()
         event.accept()
 
 

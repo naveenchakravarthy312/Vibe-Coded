@@ -135,7 +135,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         _errorMessage.value = null
         val current = _expression.value
         val trimmed = current.trimEnd()
-        val needsMultiply = trimmed.isNotEmpty() && trimmed.last() in listOf(')', 'π', 'e', '!')
+        val needsMultiply = trimmed.isNotEmpty() && trimmed.last() in listOf(')', 'π', 'e', '!', '%')
         _expression.value = if (needsMultiply) "$trimmed × $d" else current + d
         updatePreview()
     }
@@ -147,7 +147,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
             _expression.value = "0."
         } else {
             val trimmed = current.trimEnd()
-            if (trimmed.isNotEmpty() && trimmed.last() in listOf(')', 'π', 'e', '!')) {
+            if (trimmed.isNotEmpty() && trimmed.last() in listOf(')', 'π', 'e', '!', '%')) {
                 _expression.value = "$trimmed × 0."
             } else {
                 // Find last token to avoid multiple decimals in same number
@@ -172,11 +172,11 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         val current = _expression.value
         val trimmed = current.trimEnd()
 
-        if (op == "!") {
+        if (op == "!" || op == "%") {
             if (trimmed.isEmpty()) return
             val last = trimmed.last()
-            if (last.isDigit() || last in listOf(')', 'π', 'e', '!')) {
-                _expression.value = "$trimmed!"
+            if (last.isDigit() || last in listOf(')', 'π', 'e', '!', '%')) {
+                _expression.value = "$trimmed$op"
                 updatePreview()
             }
             return
@@ -192,7 +192,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         if (trimmed == "-") return
 
         val last = trimmed.last()
-        if (last in listOf('+', '-', '×', '÷', '%', '^')) {
+        if (last in listOf('+', '-', '×', '÷', '^')) {
             val prefix = trimmed.dropLast(1).trimEnd()
             _expression.value = if (prefix.isEmpty()) {
                 if (op == "-") "-" else ""
@@ -213,7 +213,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         _errorMessage.value = null
         val current = _expression.value
         val trimmed = current.trimEnd()
-        val needsMultiply = trimmed.isNotEmpty() && (trimmed.last().isDigit() || trimmed.last() in listOf(')', 'π', 'e', '!'))
+        val needsMultiply = trimmed.isNotEmpty() && (trimmed.last().isDigit() || trimmed.last() in listOf(')', 'π', 'e', '!', '%'))
         val base = if (needsMultiply) "$trimmed × " else current
         _expression.value = if (fn == "1/") {
             "${base}1 ÷ ("
@@ -227,7 +227,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         _errorMessage.value = null
         val current = _expression.value
         val trimmed = current.trimEnd()
-        val needsMultiply = trimmed.isNotEmpty() && (trimmed.last().isDigit() || trimmed.last() in listOf('.', ')', 'π', 'e', '!'))
+        val needsMultiply = trimmed.isNotEmpty() && (trimmed.last().isDigit() || trimmed.last() in listOf('.', ')', 'π', 'e', '!', '%'))
         _expression.value = if (needsMultiply) "$trimmed × $c" else current + c
         updatePreview()
     }
@@ -656,10 +656,13 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun recallResult(res: String) {
+        // Extract numeric part if recalling a unit conversion result like "0.621371 mi"
+        val numericRes = res.trim().takeWhile { it.isDigit() || it == '.' || it == '-' || it == '+' || it == 'E' }
+            .ifEmpty { res.trim() }
         val current = _expression.value
         val trimmed = current.trimEnd()
-        val needsMultiply = trimmed.isNotEmpty() && (trimmed.last().isDigit() || trimmed.last() in listOf(')', 'π', 'e', '!'))
-        _expression.value = if (needsMultiply) "$trimmed × $res" else current + res
+        val needsMultiply = trimmed.isNotEmpty() && (trimmed.last().isDigit() || trimmed.last() in listOf(')', 'π', 'e', '!', '%'))
+        _expression.value = if (needsMultiply) "$trimmed × $numericRes" else current + numericRes
         _activeTab.value = ActiveTab.CALCULATOR
         updatePreview()
     }

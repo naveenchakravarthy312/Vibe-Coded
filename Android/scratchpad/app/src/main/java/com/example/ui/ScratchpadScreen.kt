@@ -26,11 +26,11 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import com.example.data.FileStorageHelper
-import com.example.data.NoteEntity
 import com.example.ui.components.FindReplaceBar
 import com.example.ui.components.FontSettingsDialog
 import com.example.ui.components.SavedNotesSheet
@@ -50,9 +50,9 @@ fun ScratchpadScreen(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // State for temporary note being exported via SAF
-    var noteToExportContent by remember { mutableStateOf<String?>(null) }
-    var noteToExportName by remember { mutableStateOf("scratchpad.txt") }
+    // Survives configuration changes and process recreation while the SAF picker is open
+    var noteToExportContent by rememberSaveable { mutableStateOf<String?>(null) }
+    var noteToExportName by rememberSaveable { mutableStateOf("scratchpad.txt") }
 
     // SAF Create Document launcher (Save to file on device storage)
     val createDocumentLauncher = rememberLauncherForActivityResult(
@@ -147,10 +147,8 @@ fun ScratchpadScreen(
                         },
                         onCopyAll = {
                             FileStorageHelper.copyToClipboard(context, uiState.textFieldValue.text)
-                            viewModel.onFileSavedToStorage("Clipboard")
+                            viewModel.showStatusMessage("Copied to clipboard")
                         },
-                        onToggleFind = { viewModel.toggleFindReplace(!uiState.showFindReplace) },
-                        onToggleZenMode = { viewModel.toggleZenMode() },
                         onOpenFontSettings = { viewModel.toggleFontDialog(true) },
                         onClearScratchpad = { viewModel.toggleWipeConfirmDialog(true) }
                     )
@@ -181,16 +179,14 @@ fun ScratchpadScreen(
                 exit = shrinkVertically() + fadeOut()
             ) {
                 ScratchpadAccessoryBar(
-                    canUndo = viewModel.canUndo(),
-                    canRedo = viewModel.canRedo(),
+                    canUndo = uiState.canUndo,
+                    canRedo = uiState.canRedo,
                     onUndo = { viewModel.undo() },
                     onRedo = { viewModel.redo() },
                     onInsertTab = { viewModel.insertTab() },
                     onInsertTimestamp = { viewModel.insertTimestamp() },
                     onInsertChecklist = { viewModel.insertChecklist() },
                     onInsertBullet = { viewModel.insertBullet() },
-                    onZoomIn = { viewModel.adjustFontSize(1) },
-                    onZoomOut = { viewModel.adjustFontSize(-1) },
                     onToggleFind = { viewModel.toggleFindReplace(!uiState.showFindReplace) },
                     onToggleZenMode = { viewModel.toggleZenMode() }
                 )
@@ -251,12 +247,10 @@ fun ScratchpadScreen(
     if (uiState.showFontDialog) {
         FontSettingsDialog(
             fontSizeSp = uiState.fontSizeSp,
-            isMonospace = uiState.isMonospace,
             isAmoledMode = uiState.isAmoledMode,
             isDynamicColor = uiState.isDynamicColor,
             onAdjustFontSize = { viewModel.adjustFontSize(it) },
             onResetFontSize = { viewModel.resetFontSize() },
-            onToggleMonospace = { viewModel.toggleMonospace() },
             onToggleAmoledMode = { viewModel.toggleAmoledMode() },
             onToggleDynamicColor = { viewModel.toggleDynamicColor() },
             onDismiss = { viewModel.toggleFontDialog(false) }

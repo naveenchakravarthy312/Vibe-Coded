@@ -53,11 +53,15 @@ fun HostEditSheet(
     val clipboardManager = LocalClipboardManager.current
     val scrollState = rememberScrollState()
 
+    val parsedPort = portStr.toIntOrNull()
+    val isPortValid = portStr.isEmpty() || (parsedPort != null && parsedPort in 1..65535)
+    val isFormValid = hostAddress.isNotBlank() && username.isNotBlank() && isPortValid
+
     val currentEditedHost = SshHost(
         id = host.id,
         name = name.trim().ifEmpty { "Desktop" },
         host = hostAddress.trim(),
-        port = portStr.toIntOrNull() ?: 22,
+        port = parsedPort?.takeIf { it in 1..65535 } ?: 22,
         username = username.trim(),
         authType = authType,
         password = password,
@@ -132,9 +136,13 @@ fun HostEditSheet(
 
                 OutlinedTextField(
                     value = portStr,
-                    onValueChange = { portStr = it },
+                    onValueChange = { portStr = it.filter { ch -> ch.isDigit() }.take(5) },
                     label = { Text("Port") },
                     placeholder = { Text("22") },
+                    isError = !isPortValid,
+                    supportingText = if (!isPortValid) {
+                        { Text("1–65535", style = MaterialTheme.typography.labelSmall) }
+                    } else null,
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f).testTag("host_port_input"),
@@ -350,7 +358,7 @@ fun HostEditSheet(
             ) {
                 OutlinedButton(
                     onClick = { onTestConnection(currentEditedHost) },
-                    enabled = !isTesting && hostAddress.isNotBlank() && username.isNotBlank(),
+                    enabled = !isTesting && isFormValid,
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.primary
@@ -374,7 +382,7 @@ fun HostEditSheet(
 
                 Button(
                     onClick = { onSave(currentEditedHost) },
-                    enabled = hostAddress.isNotBlank() && username.isNotBlank(),
+                    enabled = isFormValid,
                     shape = RoundedCornerShape(8.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,

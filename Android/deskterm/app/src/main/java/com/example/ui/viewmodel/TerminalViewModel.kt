@@ -14,12 +14,9 @@ import com.example.ssh.SshConnectionState
 import com.example.terminal.TerminalBuffer
 import com.example.ui.theme.AppThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -48,7 +45,7 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                 _uiState.update { it.copy(connectionState = state) }
                 when (state) {
                     is SshConnectionState.Connecting -> {
-                        terminalBuffer.append("\u001B[33mConnecting to ${state.host.username}@${state.host.host}:${state.host.port}...\u001B[0m\n")
+                        terminalBuffer.append("\u001B[33m${state.step}\u001B[0m\n")
                     }
                     is SshConnectionState.Connected -> {
                         _uiState.update { it.copy(activeHost = state.host) }
@@ -72,13 +69,6 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
         // Observe hosts
         viewModelScope.launch {
             hostDao.getAllHostsFlow().collect { hostsList ->
-                // Clean up any old dummy host if present
-                val dummy = hostsList.find { it.host == "192.168.1.100" && it.password.isEmpty() && it.lastConnectedAt == null }
-                if (dummy != null) {
-                    hostDao.deleteHost(dummy)
-                    return@collect
-                }
-
                 _uiState.update { it.copy(hosts = hostsList) }
 
                 // Check auto-connect on initial load
@@ -107,6 +97,7 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             preferences.settingsFlow.collect { settings ->
                 _uiState.update { it.copy(settings = settings) }
+                sshClient.updateKeepAlive(settings.keepAliveSeconds)
             }
         }
     }
@@ -114,12 +105,11 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
     private fun checkAndTriggerAutoConnect(hosts: List<SshHost>) {
         viewModelScope.launch {
             val settings = preferences.settingsFlow.first()
-            val validHosts = hosts.filter { it.host != "192.168.1.100" || it.password.isNotEmpty() }
-            if (validHosts.isEmpty()) {
+            if (hosts.isEmpty()) {
                 // If no desktop host configured, automatically open the Host Edit form
                 startEditingHost(null)
             } else if (settings.autoConnectEnabled) {
-                val autoHost = validHosts.firstOrNull { it.isAutoConnect } ?: validHosts.firstOrNull()
+                val autoHost = hosts.firstOrNull { it.isAutoConnect } ?: hosts.firstOrNull()
                 if (autoHost != null) {
                     connectToHost(autoHost)
                 }
@@ -130,7 +120,8 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
     fun connectToHost(host: SshHost) {
         _uiState.update { it.copy(activeHost = host, activeSheet = ActiveSheet.NONE) }
         viewModelScope.launch {
-            sshClient.connect(host)
+            val keepAlive = preferences.settingsFlow.first().keepAliveSeconds
+            sshClient.connect(host, keepAliveSeconds = keepAlive)
         }
     }
 
@@ -146,12 +137,48 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun onTerminalSizeChanged(cols: Int, rows: Int, widthPx: Int, heightPx: Int) {
+        sshClient.resizePty(cols, rows, widthPx, heightPx)
+    }
+
     fun onCommandInputChanged(newInput: String) {
+        val state = _uiState.value
+        if (state.ctrlActive && newInput.length == state.commandInput.length + 1 && newInput.startsWith(state.commandInput)) {
+            val typedChar = newInput.last()
+            val ctrlByte = toControlByte(typedChar)
+            if (ctrlByte != null) {
+                sshClient.sendRawBytes(byteArrayOf(ctrlByte))
+                if (ctrlByte == 0x0C.toByte()) {
+                    terminalBuffer.clear()
+                }
+                _uiState.update { it.copy(ctrlActive = false) }
+                return
+            }
+        }
         _uiState.update { it.copy(commandInput = newInput) }
     }
 
     fun sendCurrentCommand() {
-        val command = _uiState.value.commandInput
+        val state = _uiState.value
+        val command = state.commandInput
+        if (state.ctrlActive && command.length == 1) {
+            val ctrlByte = toControlByte(command[0])
+            if (ctrlByte != null) {
+                sshClient.sendRawBytes(byteArrayOf(ctrlByte))
+                if (ctrlByte == 0x0C.toByte()) {
+                    terminalBuffer.clear()
+                }
+                _uiState.update {
+                    it.copy(
+                        commandInput = "",
+                        historyIndex = -1,
+                        ctrlActive = false
+                    )
+                }
+                return
+            }
+        }
+
         if (command.isNotBlank()) {
             viewModelScope.launch {
                 snippetDao.insertHistoryItem(CommandHistoryItem(command = command))
@@ -188,10 +215,12 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                 sshClient.sendRawBytes(byteArrayOf(0x09))
             }
             "UP" -> {
-                // If in command input history mode
-                val history = _uiState.value.history
-                if (history.isNotEmpty()) {
-                    val nextIndex = (_uiState.value.historyIndex + 1).coerceAtMost(history.size - 1)
+                // If user has started navigating local command history or command input has text, cycle local history;
+                // otherwise send ANSI Up directly to the remote PTY (so htop/nano/less/remote bash history work).
+                val state = _uiState.value
+                val history = state.history
+                if (history.isNotEmpty() && (state.historyIndex >= 0 || state.commandInput.isNotEmpty())) {
+                    val nextIndex = (state.historyIndex + 1).coerceAtMost(history.size - 1)
                     _uiState.update {
                         it.copy(
                             historyIndex = nextIndex,
@@ -248,6 +277,14 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
                 _uiState.update { it.copy(ctrlActive = false) }
             }
             else -> {
+                if (_uiState.value.ctrlActive && keyName.length == 1) {
+                    val ctrlByte = toControlByte(keyName[0])
+                    if (ctrlByte != null) {
+                        sshClient.sendRawBytes(byteArrayOf(ctrlByte))
+                        _uiState.update { it.copy(ctrlActive = false) }
+                        return
+                    }
+                }
                 // Direct character injection
                 sshClient.sendInput(keyName)
             }
@@ -389,10 +426,22 @@ class TerminalViewModel(application: Application) : AndroidViewModel(application
         setThemeMode(next)
     }
 
-    fun getExportText(): String = terminalBuffer.getFullText()
+    fun getExportText(): String = terminalBuffer.getPlainText()
 
     override fun onCleared() {
         super.onCleared()
-        sshClient.disconnect()
+        sshClient.shutdown()
+    }
+
+    companion object {
+        internal fun toControlByte(char: Char): Byte? {
+            val upper = char.uppercaseChar()
+            return when {
+                upper in '@'..'_' -> (upper.code - 64).toByte()
+                char == ' ' -> 0x00.toByte()
+                char == '?' -> 0x7F.toByte()
+                else -> null
+            }
+        }
     }
 }

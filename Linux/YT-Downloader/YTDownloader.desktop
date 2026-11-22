@@ -1,0 +1,11 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=YT-DLP Downloader
+Comment=Clean, modern desktop GUI wrapper for yt-dlp on Linux
+Exec=/usr/bin/env python3 /mnt/BA5EF38D5EF340A5/Antigravity/Vibe-Coding/Linux/YT-Downloader/yt_downloader.py
+Path=/mnt/BA5EF38D5EF340A5/Antigravity/Vibe-Coding/Linux/YT-Downloader
+Icon=/mnt/BA5EF38D5EF340A5/Antigravity/Vibe-Coding/Linux/YT-Downloader/icon.png
+Terminal=false
+Categories=AudioVideo;Audio;Video;Network;
+StartupWMClass=YT-DLP Downloader

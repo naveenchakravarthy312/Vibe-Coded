@@ -553,17 +553,20 @@ private fun HistoryItemCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Quick actions strip: Use Expression, Use Result, Copy
+            // Quick actions strip: Use Expression (Calculator only), Use Result, Copy
+            val isConverterItem = item.category == CalculationEntity.CATEGORY_CONVERTER
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FilledTonalButton(
-                    onClick = onRecallExpression,
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                    modifier = Modifier.height(30.dp)
-                ) {
-                    Text("Load Expr", style = MaterialTheme.typography.labelSmall)
+                if (!isConverterItem) {
+                    FilledTonalButton(
+                        onClick = onRecallExpression,
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.height(30.dp)
+                    ) {
+                        Text("Load Expr", style = MaterialTheme.typography.labelSmall)
+                    }
                 }
 
                 FilledTonalButton(
@@ -571,7 +574,7 @@ private fun HistoryItemCard(
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                     modifier = Modifier.height(30.dp)
                 ) {
-                    Text("Use Result", style = MaterialTheme.typography.labelSmall)
+                    Text(if (isConverterItem) "Use Value" else "Use Result", style = MaterialTheme.typography.labelSmall)
                 }
 
                 Spacer(modifier = Modifier.weight(1f))
