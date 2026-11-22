@@ -38,10 +38,11 @@ class QuickFixesTab(QWidget):
         # 1. Network & Connectivity
         net_card = self._make_card(
             "Network & Connectivity",
-            "Immediate DNS, DHCP, latency, and Winsock/TCP-IP recovery tools.",
+            "Immediate DNS, DHCP, latency, Wi-Fi signal, and Winsock/TCP-IP recovery tools.",
             [
                 ("Flush DNS & Renew IP", "ipconfig /flushdns + /renew", True, self._on_flush_dns),
                 ("Test Internet & Ping", "DNS + ping 1.1.1.1 & google.com", False, self._on_test_ping),
+                ("Show IP & Wi-Fi Info", "ipconfig /all + netsh wlan interfaces", False, self._on_ip_wifi_info),
                 ("Reset Network Stack", "netsh winsock & int ip reset (Admin)", False, self._on_reset_network),
             ],
         )
@@ -50,12 +51,15 @@ class QuickFixesTab(QWidget):
         # 2. System & Shell Recovery
         sys_card = self._make_card(
             "System & Shell Recovery",
-            "Recover frozen taskbar, stuck print queues, temp clutter, and corrupted system files.",
+            "Recover frozen taskbar, blank icons, stuck print queues, temp clutter, battery health, and system files.",
             [
                 ("Restart Explorer / Taskbar", "Kills and restarts explorer.exe", True, self._on_restart_explorer),
+                ("Flush Icon & Thumb Cache", "Clears IconCache & thumbcache + Explorer", False, self._on_flush_icons),
                 ("Fix Stuck Printer", "Clears Spooler queue (Admin)", False, self._on_fix_printer),
                 ("Clean Temp & Update Cache", "Wipes %TEMP% safely", False, self._on_clean_temp),
                 ("Repair System Files (SFC)", "Runs sfc /scannow (Admin)", False, self._on_sfc),
+                ("Repair Image (DISM)", "DISM /RestoreHealth (Admin)", False, self._on_dism),
+                ("Battery & Power Report", "Generates powercfg battery/sleep report", False, self._on_battery_report),
             ],
         )
         layout.addWidget(sys_card)
@@ -63,9 +67,10 @@ class QuickFixesTab(QWidget):
         # 3. Phone Sync & O+ Connect Doctor
         phone_card = self._make_card(
             "Phone Sync & O+ Connect Doctor",
-            "Verify Windows Push Notifications, Bluetooth, Wi-Fi Direct, WebView2, and Private firewall rules.",
+            "Verify/restart Windows Push Notifications, Bluetooth, Wi-Fi Direct, WebView2, and Private firewall rules.",
             [
                 ("Check Phone Sync Services", "WPNService, Bluetooth, Wi-Fi Direct & WebView2", True, self._on_check_phone),
+                ("Restart Phone Sync Services", "Restarts WPNService & Bluetooth (Admin)", False, self._on_restart_phone),
                 ("Fix O+ Connect Firewall", "Allow O+ Connect on Private networks (Admin)", False, self._on_fix_firewall),
             ],
         )
@@ -128,6 +133,9 @@ class QuickFixesTab(QWidget):
     def _on_test_ping(self) -> None:
         self._run_callable("Test Internet & Ping", actions.task_test_internet_ping)
 
+    def _on_ip_wifi_info(self) -> None:
+        self._run_steps("Show IP & Wi-Fi Info", actions.steps_show_ip_wifi_info())
+
     def _on_reset_network(self) -> None:
         def _after(ok: bool, _msg: str) -> None:
             if ok:
@@ -142,6 +150,9 @@ class QuickFixesTab(QWidget):
     def _on_restart_explorer(self) -> None:
         self._run_steps("Restart Explorer / Taskbar", actions.steps_restart_explorer())
 
+    def _on_flush_icons(self) -> None:
+        self._run_steps("Flush Icon & Thumbnail Cache", actions.steps_flush_icon_cache())
+
     def _on_fix_printer(self) -> None:
         self._run_steps("Fix Stuck Printer", actions.steps_fix_stuck_printer())
 
@@ -151,8 +162,17 @@ class QuickFixesTab(QWidget):
     def _on_sfc(self) -> None:
         self._run_steps("Repair System Files (SFC)", actions.steps_repair_sfc())
 
+    def _on_dism(self) -> None:
+        self._run_steps("DISM RestoreHealth", actions.steps_dism_restore_health())
+
+    def _on_battery_report(self) -> None:
+        self._run_callable("Battery & Power Report", actions.task_battery_power_report)
+
     def _on_check_phone(self) -> None:
         self._run_callable("Check Phone Sync Services", actions.task_check_phone_sync_services)
+
+    def _on_restart_phone(self) -> None:
+        self._run_steps("Restart Phone Sync Services", actions.steps_restart_phone_sync_services())
 
     def _on_fix_firewall(self) -> None:
         self._run_steps("Fix O+ Connect Firewall", actions.steps_fix_oplus_firewall())

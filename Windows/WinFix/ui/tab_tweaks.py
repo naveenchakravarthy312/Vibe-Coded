@@ -68,6 +68,20 @@ class TweaksTab(QWidget):
         )
         ui_vbox.addWidget(self.row_start_recs)
 
+        self.row_file_ext, self.badge_file_ext, self.btn_file_ext = self._make_toggle_row(
+            "Show File Extensions",
+            "Displays .exe, .bat, .zip, and all file extensions in File Explorer (HideFileExt = 0).",
+            self._on_toggle_file_ext,
+        )
+        ui_vbox.addWidget(self.row_file_ext)
+
+        self.row_hidden_files, self.badge_hidden_files, self.btn_hidden_files = self._make_toggle_row(
+            "Show Hidden Files",
+            "Reveals AppData, ProgramData, and hidden folders in File Explorer (Hidden = 1).",
+            self._on_toggle_hidden_files,
+        )
+        ui_vbox.addWidget(self.row_hidden_files)
+
         # Text Scaling Row
         scale_frame = QFrame()
         scale_frame.setStyleSheet(
@@ -211,6 +225,14 @@ class TweaksTab(QWidget):
         self._style_badge(self.badge_start_recs, start_recs)
         self.btn_start_recs.setText("Show" if start_recs else "Hide")
 
+        file_ext = bool(self._states.get("show_file_ext"))
+        self._style_badge(self.badge_file_ext, file_ext)
+        self.btn_file_ext.setText("Hide" if file_ext else "Show")
+
+        hidden_files = bool(self._states.get("show_hidden_files"))
+        self._style_badge(self.badge_hidden_files, hidden_files)
+        self.btn_hidden_files.setText("Hide" if hidden_files else "Show")
+
         ads_off = bool(self._states.get("ads_disabled"))
         self._style_badge(self.badge_ads, ads_off)
         self.btn_ads.setText("Restore" if ads_off else "Disable Ads")
@@ -247,6 +269,22 @@ class TweaksTab(QWidget):
         self._run_callable(
             "Hide Start Recommendations",
             lambda log: actions.task_toggle_hide_start_recommendations(target, log),
+            on_done=lambda _ok, _msg: self.refresh_states(),
+        )
+
+    def _on_toggle_file_ext(self) -> None:
+        target = not bool(self._states.get("show_file_ext"))
+        self._run_callable(
+            "Show File Extensions",
+            lambda log: actions.task_toggle_file_extensions(target, log),
+            on_done=lambda _ok, _msg: self.refresh_states(),
+        )
+
+    def _on_toggle_hidden_files(self) -> None:
+        target = not bool(self._states.get("show_hidden_files"))
+        self._run_callable(
+            "Show Hidden Files",
+            lambda log: actions.task_toggle_hidden_files(target, log),
             on_done=lambda _ok, _msg: self.refresh_states(),
         )
 

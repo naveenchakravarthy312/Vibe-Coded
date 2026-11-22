@@ -37,19 +37,25 @@ def run_streaming_command(
         return _run_elevated_step(step, log)
 
     if step.is_powershell:
+        ps_wrapped = (
+            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; "
+            + step.command
+        )
         cmd: str | list[str] = [
             "powershell.exe",
             "-NoProfile",
             "-ExecutionPolicy",
             "Bypass",
             "-Command",
-            step.command,
+            ps_wrapped,
         ]
         use_shell = False
+        enc = "utf-8"
         log("CMD", f"powershell> {step.command}")
     else:
         cmd = step.command
         use_shell = True
+        enc = "oem" if IS_WINDOWS else "utf-8"
         log("CMD", f"> {step.command}")
 
     try:
@@ -59,7 +65,7 @@ def run_streaming_command(
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
-            encoding="utf-8",
+            encoding=enc,
             errors="replace",
             creationflags=CREATE_NO_WINDOW,
         )

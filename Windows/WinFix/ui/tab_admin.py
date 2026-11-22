@@ -7,6 +7,7 @@ from PyQt6.QtWidgets import (
     QGridLayout,
     QLabel,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -24,8 +25,14 @@ class AdminShortcutsTab(QWidget):
         self._build_ui()
 
     def _build_ui(self) -> None:
-        root = QVBoxLayout(self)
-        root.setContentsMargins(8, 8, 8, 8)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(8, 8, 8, 8)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        container = QWidget()
+        root = QVBoxLayout(container)
+        root.setContentsMargins(0, 0, 0, 0)
 
         card = QFrame()
         card.setObjectName("CardPanel")
@@ -43,7 +50,7 @@ class AdminShortcutsTab(QWidget):
 
         grid = QGridLayout()
         grid.setSpacing(10)
-        cols = 2
+        cols = 3
         for idx, entry in enumerate(actions.ADMIN_SHORTCUTS):
             cell = QFrame()
             cell.setStyleSheet(
@@ -69,3 +76,5 @@ class AdminShortcutsTab(QWidget):
         vbox.addLayout(grid)
         vbox.addStretch(1)
         root.addWidget(card)
+        scroll.setWidget(container)
+        outer.addWidget(scroll)

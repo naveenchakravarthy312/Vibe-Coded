@@ -1,0 +1,6 @@
+{
+  "name": "fx-991DE X",
+  "description": "German CASIO fx-991DE X ClassWiz scientific calculator with Natural Textbook Display, exact symbolic math engine, and all 13 calculation modes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

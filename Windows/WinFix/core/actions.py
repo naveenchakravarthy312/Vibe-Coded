@@ -146,6 +146,99 @@ def steps_repair_sfc() -> list[ShellStep]:
     ]
 
 
+def steps_show_ip_wifi_info() -> list[ShellStep]:
+    """Display full IP configuration, DNS servers, gateway, and Wi-Fi signal details."""
+    return [
+        ShellStep("ipconfig /all", title="IP & DNS Configuration"),
+        ShellStep("netsh wlan show interfaces", title="Wi-Fi Adapter & Signal Status"),
+    ]
+
+
+def steps_dism_restore_health() -> list[ShellStep]:
+    """Run DISM /Online /Cleanup-Image /RestoreHealth with elevation."""
+    return [
+        ShellStep(
+            "DISM /Online /Cleanup-Image /RestoreHealth",
+            title="DISM Component Store Repair",
+            requires_admin=True,
+        )
+    ]
+
+
+def steps_flush_icon_cache() -> list[ShellStep]:
+    """Clear Windows icon & thumbnail cache databases and restart Explorer."""
+    ps_cmd = (
+        "Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue; "
+        "Start-Sleep -Milliseconds 500; "
+        "$local = $env:LocalAppData; "
+        "Remove-Item -Path (Join-Path $local 'IconCache.db') -Force -ErrorAction SilentlyContinue; "
+        "Remove-Item -Path (Join-Path $local 'Microsoft\\Windows\\Explorer\\iconcache_*.db') -Force -ErrorAction SilentlyContinue; "
+        "Remove-Item -Path (Join-Path $local 'Microsoft\\Windows\\Explorer\\thumbcache_*.db') -Force -ErrorAction SilentlyContinue; "
+        "Start-Process explorer.exe; "
+        "Write-Output 'Icon and thumbnail caches cleared.'"
+    )
+    return [
+        ShellStep(
+            ps_cmd,
+            title="Flush Icon & Thumbnail Cache",
+            is_powershell=True,
+        )
+    ]
+
+
+def task_battery_power_report(log: LogFn) -> tuple[bool, str]:
+    """Generate a Windows battery health report in %TEMP% and open it in the default browser."""
+    if not IS_WINDOWS:
+        return False, "Battery report requires Windows."
+    temp_dir = os.environ.get("TEMP") or os.environ.get("TMP") or r"C:\Temp"
+    report_path = os.path.join(temp_dir, "winfix_battery_report.html")
+    rc = run_streaming_command(
+        ShellStep(
+            f'powercfg /batteryreport /output "{report_path}"',
+            title="Generate Battery Health Report",
+        ),
+        log,
+    )
+    if rc == 0 and os.path.isfile(report_path):
+        log("OK", f"Battery report saved to: {report_path}")
+        try:
+            os.startfile(report_path)  # type: ignore[attr-defined]
+        except Exception as exc:
+            log("WARN", f"Could not auto-open report: {exc}")
+        return True, "Battery health report generated."
+
+    log("INFO", "No battery detected or batteryreport unavailable; checking sleep states...")
+    run_streaming_command(
+        ShellStep("powercfg /availablesleepstates", title="Available Sleep States"),
+        log,
+    )
+    return False, "No battery detected (desktop/VM) — printed available sleep states instead."
+
+
+def steps_restart_phone_sync_services() -> list[ShellStep]:
+    """Restart Windows Push Notification and Bluetooth services for Phone Sync / O+ Connect."""
+    ps_cmd = (
+        "foreach ($svc in @('WPNService', 'bthserv', 'BTAGService')) { "
+        "  $s = Get-Service -Name $svc -ErrorAction SilentlyContinue; "
+        "  if ($s) { "
+        "    Restart-Service -Name $svc -Force -ErrorAction SilentlyContinue; "
+        "    $after = Get-Service -Name $svc; "
+        "    Write-Output (\"{0,-15} Status={1}\" -f $after.Name, $after.Status); "
+        "  } else { "
+        "    Write-Output (\"{0,-15} NOT FOUND\" -f $svc); "
+        "  } "
+        "}"
+    )
+    return [
+        ShellStep(
+            ps_cmd,
+            title="Restart Phone Sync & Bluetooth Services",
+            requires_admin=True,
+            is_powershell=True,
+        )
+    ]
+
+
 def task_check_phone_sync_services(log: LogFn) -> tuple[bool, str]:
     """Verify WPNService, Bluetooth services, Wi-Fi Direct adapter, and Edge WebView2 runtime."""
     if not IS_WINDOWS:
@@ -286,6 +379,8 @@ def get_tweak_states() -> dict[str, object]:
     text_scale = _reg_read_dword(_ACCESSIBILITY_KEY, "TextScaleFactor", default=100)
     ad_info = _reg_read_dword(_ADVERTISING_KEY, "Enabled", default=1)
     copilot_btn = _reg_read_dword(_EXPLORER_ADV_KEY, "ShowCopilotButton", default=1)
+    hide_ext = _reg_read_dword(_EXPLORER_ADV_KEY, "HideFileExt", default=1)
+    hidden_files = _reg_read_dword(_EXPLORER_ADV_KEY, "Hidden", default=2)
 
     return {
         "classic_menu": classic_menu,
@@ -293,6 +388,8 @@ def get_tweak_states() -> dict[str, object]:
         "hide_start_recs": (iris_rec == 0 and track_docs == 0),
         "text_scale": text_scale if text_scale in (100, 125, 150) else (text_scale or 100),
         "ads_disabled": (ad_info == 0 and copilot_btn == 0),
+        "show_file_ext": hide_ext == 0,
+        "show_hidden_files": hidden_files == 1,
     }
 
 
@@ -420,6 +517,26 @@ def task_toggle_ads_telemetry(disable: bool, log: LogFn) -> tuple[bool, str]:
     return True, f"Ads & Telemetry {'Disabled' if disable else 'Restored'}."
 
 
+def task_toggle_file_extensions(show: bool, log: LogFn) -> tuple[bool, str]:
+    """Show or hide known file extensions in File Explorer (HideFileExt)."""
+    if not IS_WINDOWS:
+        return False, "Registry tweaks require Windows."
+    val = 0 if show else 1
+    _reg_write_dword(_EXPLORER_ADV_KEY, "HideFileExt", val)
+    log("OK", f"Set HKCU\\...\\Explorer\\Advanced\\HideFileExt = {val}")
+    return True, f"Show File Extensions {'Enabled' if show else 'Disabled'}."
+
+
+def task_toggle_hidden_files(show: bool, log: LogFn) -> tuple[bool, str]:
+    """Show or hide hidden files and folders in File Explorer (Hidden)."""
+    if not IS_WINDOWS:
+        return False, "Registry tweaks require Windows."
+    val = 1 if show else 2
+    _reg_write_dword(_EXPLORER_ADV_KEY, "Hidden", val)
+    log("OK", f"Set HKCU\\...\\Explorer\\Advanced\\Hidden = {val}")
+    return True, f"Show Hidden Files {'Enabled' if show else 'Disabled'}."
+
+
 # ---------------------------------------------------------------------------
 # Tab 4: Windows Admin Shortcuts
 # ---------------------------------------------------------------------------
@@ -431,6 +548,10 @@ ADMIN_SHORTCUTS: list[dict[str, str]] = [
     {"id": "appwiz", "label": "Programs & Features", "cmd": "appwiz.cpl", "desc": "Classic uninstall panel"},
     {"id": "startup", "label": "Startup Apps", "cmd": "ms-settings:startupapps", "desc": "Manage login items"},
     {"id": "winupdate", "label": "Windows Update", "cmd": "ms-settings:windowsupdate", "desc": "Check OS & driver updates"},
+    {"id": "taskmgr", "label": "Task Manager", "cmd": "taskmgr.exe", "desc": "Processes, startup & GPU/CPU load"},
+    {"id": "eventvwr", "label": "Event Viewer", "cmd": "eventvwr.msc", "desc": "System crash & driver error logs"},
+    {"id": "diskmgmt", "label": "Disk Management", "cmd": "diskmgmt.msc", "desc": "Partitions, USB drives & volumes"},
+    {"id": "resmon", "label": "Resource Monitor", "cmd": "resmon.exe", "desc": "Live disk, network & handle activity"},
     {"id": "regedit", "label": "Registry Editor", "cmd": "regedit.exe", "desc": "Open Windows Registry"},
     {"id": "admin_ps", "label": "Open Admin PowerShell", "cmd": "powershell.exe", "desc": "Elevated PowerShell console"},
 ]
