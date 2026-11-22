@@ -1,11 +1,11 @@
 {
   "schema_version": 2,
-  "github_raw_url": "https://raw.githubusercontent.com/example/winfix/main/apps.json",
+  "github_raw_url": "https://github.com/naveenchakravarthy312/Vibe-Coded/blob/main/Windows/WinFix/apps.json",
   "apps": [
     {
       "id": "google-chrome",
       "name": "Google Chrome",
-      "category": "Parent Essentials",
+      "category": "Browser",
       "method": "winget",
       "winget_id": "Google.Chrome",
       "direct_url": null,
@@ -24,7 +24,7 @@
     {
       "id": "microsoft-edge",
       "name": "Microsoft Edge",
-      "category": "Parent Essentials",
+      "category": "Browser",
       "method": "winget",
       "winget_id": "Microsoft.Edge",
       "direct_url": null,
@@ -42,7 +42,7 @@
     {
       "id": "mozilla-firefox",
       "name": "Mozilla Firefox",
-      "category": "Parent Essentials",
+      "category": "Browser",
       "method": "winget",
       "winget_id": "Mozilla.Firefox",
       "direct_url": null,
@@ -60,7 +60,7 @@
     },
     {
       "id": "brave-browser",
-      "name": "Brave Browser",
+      "name": "Browser",
       "category": "Parent Essentials",
       "method": "winget",
       "winget_id": "Brave.Brave",
@@ -78,30 +78,29 @@
       ]
     },
     {
-      "id": "oplus-connect",
-      "name": "O+ Connect",
-      "category": "Parent Essentials",
-      "method": "web_page",
-      "winget_id": null,
+      "id": "zen-browser",
+      "name": "Zen Browser",
+      "category": "Browser",
+      "method": "winget",
+      "winget_id": "Zen-Team.Zen-Browser",
       "direct_url": null,
       "portable_url": null,
-      "web_url": "https://connect.oppo.com/",
-      "exe_name": "O+ Connect.exe",
+      "web_url": "https://zen-browser.app/",
+      "exe_name": "zen.exe",
       "supports_user_scope": true,
-      "arm64_native": false,
-      "description": "OPPO / OnePlus phone-to-PC file transfer, clipboard sync, and screen mirroring (opens official download portal).",
+      "arm64_native": true,
+      "description": "Privacy-focused, vertical-tab Firefox-based browser.",
       "detect_paths": [
-        "%ProgramFiles%\\O+ Connect\\O+ Connect.exe",
-        "%ProgramFiles(x86)%\\O+ Connect\\O+ Connect.exe",
-        "%LocalAppData%\\Programs\\O+ Connect\\O+ Connect.exe",
-        "%LocalAppData%\\O+ Connect\\O+ Connect.exe",
-        "%ProgramFiles%\\OPPO\\O+ Connect\\O+ Connect.exe"
+        "%ProgramFiles%\\Zen Browser\\zen.exe",
+        "%LocalAppData%\\Programs\\Zen Browser\\zen.exe",
+        "%LocalAppData%\\Zen Browser\\zen.exe",
+        "%USERPROFILE%\\Apps\\Zen Browser\\zen.exe"
       ]
     },
     {
       "id": "kde-connect",
       "name": "KDE Connect",
-      "category": "Parent Essentials",
+      "category": "Connectivity",
       "method": "winget",
       "winget_id": "KDE.KDEConnect",
       "direct_url": null,
@@ -119,7 +118,7 @@
     {
       "id": "localsend",
       "name": "LocalSend",
-      "category": "Parent Essentials",
+      "category": "Connectivity",
       "method": "winget",
       "winget_id": "LocalSend.LocalSend",
       "direct_url": null,
@@ -138,7 +137,7 @@
     {
       "id": "vlc",
       "name": "VLC Media Player",
-      "category": "Parent Essentials",
+      "category": "Media & Creativity",
       "method": "winget",
       "winget_id": "VideoLAN.VLC",
       "direct_url": null,
@@ -156,7 +155,7 @@
     {
       "id": "7zip",
       "name": "7-Zip",
-      "category": "Parent Essentials",
+      "category": "Untility",
       "method": "winget",
       "winget_id": "7zip.7zip",
       "direct_url": null,
@@ -174,7 +173,7 @@
     {
       "id": "libreoffice",
       "name": "LibreOffice",
-      "category": "Parent Essentials",
+      "category": "Office",
       "method": "winget",
       "winget_id": "TheDocumentFoundation.LibreOffice",
       "direct_url": null,
@@ -192,7 +191,7 @@
     {
       "id": "sumatrapdf",
       "name": "SumatraPDF",
-      "category": "Parent Essentials",
+      "category": "Office",
       "method": "winget",
       "winget_id": "SumatraPDF.SumatraPDF",
       "direct_url": null,
@@ -211,7 +210,7 @@
     {
       "id": "flow-launcher",
       "name": "Flow Launcher",
-      "category": "Portable / Power Tools",
+      "category": "Power Tools",
       "method": "winget",
       "winget_id": "Flow-Launcher.Flow-Launcher",
       "direct_url": null,
@@ -229,7 +228,7 @@
     {
       "id": "altsnap",
       "name": "AltSnap",
-      "category": "Portable / Power Tools",
+      "category": "Power Tools",
       "method": "winget",
       "winget_id": "AltSnap.AltSnap",
       "direct_url": "https://github.com/RamonUnch/AltSnap/releases/download/1.68/AltSnap1.68-x64-inst.exe",
@@ -249,7 +248,7 @@
     {
       "id": "quicklook",
       "name": "QuickLook",
-      "category": "Portable / Power Tools",
+      "category": "Power Tools",
       "method": "winget",
       "winget_id": "QL-Win.QuickLook",
       "direct_url": null,
@@ -267,29 +266,9 @@
       ]
     },
     {
-      "id": "zen-browser",
-      "name": "Zen Browser",
-      "category": "Portable / Power Tools",
-      "method": "winget",
-      "winget_id": "Zen-Team.Zen-Browser",
-      "direct_url": null,
-      "portable_url": null,
-      "web_url": "https://zen-browser.app/",
-      "exe_name": "zen.exe",
-      "supports_user_scope": true,
-      "arm64_native": true,
-      "description": "Privacy-focused, vertical-tab Firefox-based browser.",
-      "detect_paths": [
-        "%ProgramFiles%\\Zen Browser\\zen.exe",
-        "%LocalAppData%\\Programs\\Zen Browser\\zen.exe",
-        "%LocalAppData%\\Zen Browser\\zen.exe",
-        "%USERPROFILE%\\Apps\\Zen Browser\\zen.exe"
-      ]
-    },
-    {
       "id": "everything",
       "name": "Everything Search",
-      "category": "Portable / Power Tools",
+      "category": "Power Tools",
       "method": "winget",
       "winget_id": "voidtools.Everything",
       "direct_url": null,
@@ -308,7 +287,7 @@
     {
       "id": "powertoys",
       "name": "Microsoft PowerToys",
-      "category": "Portable / Power Tools",
+      "category": "Power Tools",
       "method": "winget",
       "winget_id": "Microsoft.PowerToys",
       "direct_url": null,
@@ -326,7 +305,7 @@
     {
       "id": "sharex",
       "name": "ShareX",
-      "category": "Portable / Power Tools",
+      "category": "Power Tools",
       "method": "winget",
       "winget_id": "ShareX.ShareX",
       "direct_url": null,
@@ -343,26 +322,9 @@
       ]
     },
     {
-      "id": "eartrumpet",
-      "name": "EarTrumpet",
-      "category": "Portable / Power Tools",
-      "method": "winget",
-      "winget_id": "File-New-Project.EarTrumpet",
-      "direct_url": null,
-      "portable_url": null,
-      "web_url": "https://eartrumpet.app/",
-      "exe_name": "EarTrumpet.exe",
-      "supports_user_scope": true,
-      "arm64_native": true,
-      "description": "Per-app volume mixer and quick audio output switcher in the system tray.",
-      "detect_paths": [
-        "%LocalAppData%\\Microsoft\\WindowsApps\\EarTrumpet.exe"
-      ]
-    },
-    {
       "id": "wiztree",
       "name": "WizTree",
-      "category": "Portable / Power Tools",
+      "category": "Power Tools",
       "method": "winget",
       "winget_id": "AntibodySoftware.WizTree",
       "direct_url": null,
@@ -376,40 +338,6 @@
         "%ProgramFiles%\\WizTree\\WizTree64.exe",
         "%ProgramFiles(x86)%\\WizTree\\WizTree.exe",
         "%USERPROFILE%\\Apps\\WizTree\\WizTree64.exe"
-      ]
-    },
-    {
-      "id": "nanazip",
-      "name": "NanaZip",
-      "category": "Portable / Power Tools",
-      "method": "winget",
-      "winget_id": "M2Team.NanaZip",
-      "direct_url": null,
-      "portable_url": null,
-      "web_url": "https://github.com/M2Team/NanaZip",
-      "exe_name": "NanaZip.Modern.exe",
-      "supports_user_scope": true,
-      "arm64_native": true,
-      "description": "Modern Windows 11 fork of 7-Zip with native Windows 11 context menu integration.",
-      "detect_paths": [
-        "%LocalAppData%\\Microsoft\\WindowsApps\\NanaZip.exe"
-      ]
-    },
-    {
-      "id": "obs-studio",
-      "name": "OBS Studio",
-      "category": "Media & Creativity",
-      "method": "winget",
-      "winget_id": "OBSProject.OBSStudio",
-      "direct_url": null,
-      "portable_url": null,
-      "web_url": "https://obsproject.com/",
-      "exe_name": "obs64.exe",
-      "supports_user_scope": false,
-      "arm64_native": true,
-      "description": "Free, open-source screen recording and live streaming studio.",
-      "detect_paths": [
-        "%ProgramFiles%\\obs-studio\\bin\\64bit\\obs64.exe"
       ]
     },
     {
@@ -484,23 +412,6 @@
       ]
     },
     {
-      "id": "moonlight",
-      "name": "Moonlight Game Streaming",
-      "category": "Media & Creativity",
-      "method": "winget",
-      "winget_id": "MoonlightGameStreamingProject.Moonlight",
-      "direct_url": null,
-      "portable_url": null,
-      "web_url": "https://moonlight-stream.org/",
-      "exe_name": "Moonlight.exe",
-      "supports_user_scope": false,
-      "arm64_native": true,
-      "description": "Low-latency desktop and game streaming client for Sunshine hosts.",
-      "detect_paths": [
-        "%ProgramFiles%\\Moonlight Game Streaming\\Moonlight.exe"
-      ]
-    },
-    {
       "id": "bitwarden",
       "name": "Bitwarden",
       "category": "Security & Remote Support",
@@ -552,24 +463,6 @@
       "detect_paths": [
         "%ProgramFiles(x86)%\\AnyDesk\\AnyDesk.exe",
         "%ProgramFiles%\\AnyDesk\\AnyDesk.exe"
-      ]
-    },
-    {
-      "id": "rustdesk",
-      "name": "RustDesk",
-      "category": "Security & Remote Support",
-      "method": "web_page",
-      "winget_id": null,
-      "direct_url": null,
-      "portable_url": "https://github.com/rustdesk/rustdesk/releases/latest",
-      "web_url": "https://github.com/rustdesk/rustdesk/releases/latest",
-      "exe_name": "rustdesk.exe",
-      "supports_user_scope": true,
-      "arm64_native": true,
-      "description": "Open-source self-hostable remote desktop (installed via GitHub Releases; removed from WinGet in May 2026).",
-      "detect_paths": [
-        "%ProgramFiles%\\RustDesk\\rustdesk.exe",
-        "%USERPROFILE%\\Apps\\RustDesk\\rustdesk.exe"
       ]
     },
     {
