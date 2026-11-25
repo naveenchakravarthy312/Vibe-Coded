@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -84,19 +85,17 @@ class TweaksTab(QWidget):
 
         # Text Scaling Row
         scale_frame = QFrame()
-        scale_frame.setStyleSheet(
-            "QFrame { background-color: #141414; border: 1px solid #2C2C30; border-radius: 6px; }"
-        )
+        scale_frame.setObjectName("SubCard")
         scale_hbox = QHBoxLayout(scale_frame)
         scale_hbox.setContentsMargins(12, 10, 12, 10)
         scale_hbox.setSpacing(10)
 
         scale_info = QVBoxLayout()
         lbl_scale = QLabel("Text Scaling")
-        lbl_scale.setStyleSheet("font-weight: 600; border: none;")
+        lbl_scale.setObjectName("CardTitle")
         scale_info.addWidget(lbl_scale)
         lbl_scale_desc = QLabel("Quick accessibility text size presets (100%, 125%, 150%).")
-        lbl_scale_desc.setStyleSheet(f"font-size: 10pt; color: {TEXT_MUTED}; border: none;")
+        lbl_scale_desc.setObjectName("MutedLabel")
         scale_info.addWidget(lbl_scale_desc)
         scale_hbox.addLayout(scale_info, 1)
 
@@ -130,19 +129,17 @@ class TweaksTab(QWidget):
 
         # Remove Consumer Bloat row
         rem_frame = QFrame()
-        rem_frame.setStyleSheet(
-            "QFrame { background-color: #141414; border: 1px solid #2C2C30; border-radius: 6px; }"
-        )
+        rem_frame.setObjectName("SubCard")
         rem_hbox = QHBoxLayout(rem_frame)
         rem_hbox.setContentsMargins(12, 10, 12, 10)
         rem_info = QVBoxLayout()
         lbl_rem = QLabel("Remove Consumer Bloat")
-        lbl_rem.setStyleSheet("font-weight: 600; border: none;")
+        lbl_rem.setObjectName("CardTitle")
         rem_info.addWidget(lbl_rem)
         lbl_rem_desc = QLabel(
             "Uninstalls TikTok, Clipchamp, Bing News/Weather, Solitaire, and Xbox clutter via winget."
         )
-        lbl_rem_desc.setStyleSheet(f"font-size: 10pt; color: {TEXT_MUTED}; border: none;")
+        lbl_rem_desc.setObjectName("MutedLabel")
         lbl_rem_desc.setWordWrap(True)
         rem_info.addWidget(lbl_rem_desc)
         rem_hbox.addLayout(rem_info, 1)
@@ -168,28 +165,29 @@ class TweaksTab(QWidget):
 
     def _make_toggle_row(self, title: str, desc: str, slot) -> tuple[QFrame, QLabel, QPushButton]:
         frame = QFrame()
-        frame.setStyleSheet(
-            "QFrame { background-color: #141414; border: 1px solid #2C2C30; border-radius: 6px; }"
-        )
+        frame.setObjectName("SubCard")
         hbox = QHBoxLayout(frame)
         hbox.setContentsMargins(12, 10, 12, 10)
         hbox.setSpacing(10)
 
         info = QVBoxLayout()
         lbl_title = QLabel(title)
-        lbl_title.setStyleSheet("font-weight: 600; border: none;")
+        lbl_title.setObjectName("CardTitle")
         info.addWidget(lbl_title)
         lbl_desc = QLabel(desc)
-        lbl_desc.setStyleSheet(f"font-size: 10pt; color: {TEXT_MUTED}; border: none;")
+        lbl_desc.setObjectName("MutedLabel")
         lbl_desc.setWordWrap(True)
         info.addWidget(lbl_desc)
         hbox.addLayout(info, 1)
 
         badge = QLabel("Disabled")
+        badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        badge.setMinimumWidth(78)
         hbox.addWidget(badge)
 
         btn = QPushButton("Toggle")
         btn.setObjectName("PrimaryButton")
+        btn.setMinimumWidth(110)
         btn.clicked.connect(slot)
         hbox.addWidget(btn)
 
@@ -239,12 +237,9 @@ class TweaksTab(QWidget):
 
         active_scale = int(self._states.get("text_scale", 100))
         for pct, btn in self.scale_buttons.items():
-            if pct == active_scale:
-                btn.setObjectName("PrimaryButton")
-                btn.setStyleSheet(f"background-color: {PRIMARY_ACCENT}; color: #141414; font-weight: 700;")
-            else:
-                btn.setObjectName("")
-                btn.setStyleSheet("")
+            btn.setObjectName("PrimaryButton" if pct == active_scale else "")
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
 
     # --- Handlers ---
 

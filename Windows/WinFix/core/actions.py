@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import os
 import shutil
 import socket
@@ -106,7 +107,12 @@ def task_clean_temp_cache(log: LogFn) -> tuple[bool, str]:
     removed = 0
     skipped = 0
 
-    for entry in os.scandir(temp_dir):
+    try:
+        entries = list(os.scandir(temp_dir))
+    except OSError as exc:
+        return False, f"Could not scan %TEMP%: {exc}"
+
+    for entry in entries:
         try:
             if entry.is_dir(follow_symlinks=False):
                 shutil.rmtree(entry.path, ignore_errors=False)
@@ -123,7 +129,11 @@ def task_clean_temp_cache(log: LogFn) -> tuple[bool, str]:
         if os.path.isdir(wu_dl):
             log("INFO", f"Cleaning Windows Update download cache: {wu_dl}")
             wu_removed = 0
-            for entry in os.scandir(wu_dl):
+            try:
+                wu_entries = list(os.scandir(wu_dl))
+            except OSError:
+                wu_entries = []
+            for entry in wu_entries:
                 try:
                     if entry.is_dir(follow_symlinks=False):
                         shutil.rmtree(entry.path, ignore_errors=True)
@@ -311,13 +321,13 @@ def steps_fix_oplus_firewall() -> list[ShellStep]:
         "$exe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1; "
         "if ($exe) { "
         "  Write-Output \"Found O+ Connect: $exe\"; "
-        "  netsh advfirewall firewall delete rule name=\"WinFix - O+ Connect In\" | Out-Null; "
-        "  netsh advfirewall firewall delete rule name=\"WinFix - O+ Connect Out\" | Out-Null; "
+        "  netsh advfirewall firewall delete rule name=\"WinFix - O+ Connect In\" 2>$null | Out-Null; "
+        "  netsh advfirewall firewall delete rule name=\"WinFix - O+ Connect Out\" 2>$null | Out-Null; "
         "  netsh advfirewall firewall add rule name=\"WinFix - O+ Connect In\" dir=in action=allow program=\"$exe\" enable=yes profile=private; "
         "  netsh advfirewall firewall add rule name=\"WinFix - O+ Connect Out\" dir=out action=allow program=\"$exe\" enable=yes profile=private; "
         "} else { "
-        "  Write-Output 'O+ Connect executable not found in standard paths; adding Private mDNS/discovery rules instead.'; "
-        "  netsh advfirewall firewall delete rule name=\"WinFix - O+ Connect Discovery In\" | Out-Null; "
+        "  Write-Output 'O+ Connect executable not found in standard paths; adding Private mDNS/discovery rule instead.'; "
+        "  netsh advfirewall firewall delete rule name=\"WinFix - O+ Connect Discovery In\" 2>$null | Out-Null; "
         "  netsh advfirewall firewall add rule name=\"WinFix - O+ Connect Discovery In\" dir=in action=allow protocol=UDP localport=5353 profile=private enable=yes; "
         "}"
     )
@@ -419,12 +429,37 @@ def task_toggle_classic_menu(enable: bool, log: LogFn) -> tuple[bool, str]:
     return True, f"Classic Right-Click Menu {'Enabled' if enable else 'Disabled'}."
 
 
+def _notify_shell_settings_changed() -> None:
+    """Broadcast WM_SETTINGCHANGE and SHChangeNotify so Explorer/Taskbar apply HKCU tweaks immediately."""
+    if not IS_WINDOWS:
+        return
+    try:
+        HWND_BROADCAST = 0xFFFF
+        WM_SETTINGCHANGE = 0x001A
+        SMTO_ABORTIFHUNG = 0x0002
+        ctypes.windll.user32.SendMessageTimeoutW(
+            HWND_BROADCAST,
+            WM_SETTINGCHANGE,
+            0,
+            "Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Advanced",
+            SMTO_ABORTIFHUNG,
+            1000,
+            None,
+        )
+        SHCNE_ASSOCCHANGED = 0x08000000
+        SHCNF_IDLIST = 0x0000
+        ctypes.windll.shell32.SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, None, None)
+    except Exception:
+        pass
+
+
 def task_toggle_left_taskbar(enable: bool, log: LogFn) -> tuple[bool, str]:
     """Set Taskbar alignment to Left (0) or Center (1)."""
     if not IS_WINDOWS:
         return False, "Registry tweaks require Windows."
     val = 0 if enable else 1
     _reg_write_dword(_EXPLORER_ADV_KEY, "TaskbarAl", val)
+    _notify_shell_settings_changed()
     log("OK", f"Set HKCU\\...\\Explorer\\Advanced\\TaskbarAl = {val}")
     return True, f"Left-Align Taskbar {'Enabled' if enable else 'Disabled'}."
 
@@ -437,6 +472,7 @@ def task_toggle_hide_start_recommendations(enable: bool, log: LogFn) -> tuple[bo
     _reg_write_dword(_EXPLORER_ADV_KEY, "Start_IrisRecommendations", val)
     _reg_write_dword(_EXPLORER_ADV_KEY, "Start_TrackDocs", val)
     _reg_write_dword(_EXPLORER_ADV_KEY, "Start_AccountNotifications", val)
+    _notify_shell_settings_changed()
     log("OK", f"Updated Start recommendation keys to {val}.")
     return True, f"Hide Start Recommendations {'Enabled' if enable else 'Disabled'}."
 
@@ -447,7 +483,7 @@ def task_set_text_scaling(percent: int, log: LogFn) -> tuple[bool, str]:
         return False, "Registry tweaks require Windows."
     _reg_write_dword(_ACCESSIBILITY_KEY, "TextScaleFactor", percent)
     log("OK", f"Set TextScaleFactor = {percent}% in HKCU\\Software\\Microsoft\\Accessibility.")
-    # Broadcast WM_SETTINGCHANGE so UWP/shell picks up the change
+    _notify_shell_settings_changed()
     run_streaming_command(
         ShellStep(
             "RUNDLL32.EXE user32.dll,UpdatePerUserSystemParameters",
@@ -473,13 +509,31 @@ CONSUMER_BLOAT_IDS = [
 
 
 def task_remove_consumer_bloat(log: LogFn) -> tuple[bool, str]:
-    """Run targeted winget uninstall for consumer bloat while preserving WebView2, Bluetooth, and Prism."""
+    """Run targeted winget uninstall for installed consumer bloat while preserving WebView2, Bluetooth, and Prism."""
     if not IS_WINDOWS:
         return False, "Requires Windows."
 
     log("INFO", "Preserving Edge WebView2, Bluetooth stack, and ARM64 Prism dependencies.")
+    log("INFO", "Scanning installed packages to target only present consumer bloat...")
+    try:
+        proc = subprocess.run(
+            ["winget", "list", "--accept-source-agreements"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=25,
+            creationflags=CREATE_NO_WINDOW,
+        )
+        installed_text = proc.stdout.lower()
+    except Exception:
+        installed_text = ""
+
     removed_count = 0
     for label, pkg_id in CONSUMER_BLOAT_IDS:
+        if installed_text and pkg_id.lower()[:16] not in installed_text:
+            log("INFO", f"Skipping {label} ({pkg_id}) — not installed.")
+            continue
         cmd = (
             f'winget uninstall --id "{pkg_id}" --exact --silent '
             f"--accept-source-agreements"
@@ -488,7 +542,7 @@ def task_remove_consumer_bloat(log: LogFn) -> tuple[bool, str]:
         if rc == 0:
             removed_count += 1
 
-    return True, f"Consumer bloat cleanup finished ({removed_count} packages removed/verified)."
+    return True, f"Consumer bloat cleanup finished ({removed_count} packages removed)."
 
 
 def task_toggle_ads_telemetry(disable: bool, log: LogFn) -> tuple[bool, str]:
@@ -513,6 +567,7 @@ def task_toggle_ads_telemetry(disable: bool, log: LogFn) -> tuple[bool, str]:
     for name in suggestion_keys:
         _reg_write_dword(_CONTENT_DELIVERY_KEY, name, val)
 
+    _notify_shell_settings_changed()
     log("OK", f"Set Advertising ID, ContentDeliveryManager suggestions, and Copilot button = {val}.")
     return True, f"Ads & Telemetry {'Disabled' if disable else 'Restored'}."
 
@@ -523,6 +578,7 @@ def task_toggle_file_extensions(show: bool, log: LogFn) -> tuple[bool, str]:
         return False, "Registry tweaks require Windows."
     val = 0 if show else 1
     _reg_write_dword(_EXPLORER_ADV_KEY, "HideFileExt", val)
+    _notify_shell_settings_changed()
     log("OK", f"Set HKCU\\...\\Explorer\\Advanced\\HideFileExt = {val}")
     return True, f"Show File Extensions {'Enabled' if show else 'Disabled'}."
 
@@ -533,6 +589,7 @@ def task_toggle_hidden_files(show: bool, log: LogFn) -> tuple[bool, str]:
         return False, "Registry tweaks require Windows."
     val = 1 if show else 2
     _reg_write_dword(_EXPLORER_ADV_KEY, "Hidden", val)
+    _notify_shell_settings_changed()
     log("OK", f"Set HKCU\\...\\Explorer\\Advanced\\Hidden = {val}")
     return True, f"Show Hidden Files {'Enabled' if show else 'Disabled'}."
 

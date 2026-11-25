@@ -40,9 +40,9 @@ class QuickFixesTab(QWidget):
             "Network & Connectivity",
             "Immediate DNS, DHCP, latency, Wi-Fi signal, and Winsock/TCP-IP recovery tools.",
             [
-                ("Flush DNS & Renew IP", "ipconfig /flushdns + /renew", True, self._on_flush_dns),
-                ("Test Internet & Ping", "DNS + ping 1.1.1.1 & google.com", False, self._on_test_ping),
-                ("Show IP & Wi-Fi Info", "ipconfig /all + netsh wlan interfaces", False, self._on_ip_wifi_info),
+                ("Flush DNS && Renew IP", "ipconfig /flushdns + /renew", True, self._on_flush_dns),
+                ("Test Internet && Ping", "DNS + ping 1.1.1.1 & google.com", False, self._on_test_ping),
+                ("Show IP && Wi-Fi Info", "ipconfig /all + netsh wlan interfaces", False, self._on_ip_wifi_info),
                 ("Reset Network Stack", "netsh winsock & int ip reset (Admin)", False, self._on_reset_network),
             ],
         )
@@ -54,12 +54,12 @@ class QuickFixesTab(QWidget):
             "Recover frozen taskbar, blank icons, stuck print queues, temp clutter, battery health, and system files.",
             [
                 ("Restart Explorer / Taskbar", "Kills and restarts explorer.exe", True, self._on_restart_explorer),
-                ("Flush Icon & Thumb Cache", "Clears IconCache & thumbcache + Explorer", False, self._on_flush_icons),
+                ("Flush Icon && Thumb Cache", "Clears IconCache & thumbcache + Explorer", False, self._on_flush_icons),
                 ("Fix Stuck Printer", "Clears Spooler queue (Admin)", False, self._on_fix_printer),
-                ("Clean Temp & Update Cache", "Wipes %TEMP% safely", False, self._on_clean_temp),
+                ("Clean Temp && Update Cache", "Wipes %TEMP% safely", False, self._on_clean_temp),
                 ("Repair System Files (SFC)", "Runs sfc /scannow (Admin)", False, self._on_sfc),
                 ("Repair Image (DISM)", "DISM /RestoreHealth (Admin)", False, self._on_dism),
-                ("Battery & Power Report", "Generates powercfg battery/sleep report", False, self._on_battery_report),
+                ("Battery && Power Report", "Generates powercfg battery/sleep report", False, self._on_battery_report),
             ],
         )
         layout.addWidget(sys_card)
@@ -89,8 +89,8 @@ class QuickFixesTab(QWidget):
         card = QFrame()
         card.setObjectName("CardPanel")
         vbox = QVBoxLayout(card)
-        vbox.setContentsMargins(14, 12, 14, 14)
-        vbox.setSpacing(8)
+        vbox.setContentsMargins(12, 10, 12, 12)
+        vbox.setSpacing(6)
 
         lbl_title = QLabel(title)
         lbl_title.setObjectName("SectionTitle")
@@ -102,10 +102,13 @@ class QuickFixesTab(QWidget):
         vbox.addWidget(lbl_sub)
 
         grid = QGridLayout()
-        grid.setSpacing(10)
+        grid.setSpacing(8)
         cols = 2
+        for col in range(cols):
+            grid.setColumnStretch(col, 1)
         for idx, (btn_text, hint, is_primary, slot) in enumerate(buttons):
             cell = QWidget()
+            cell.setObjectName("TransparentCell")
             cell_layout = QVBoxLayout(cell)
             cell_layout.setContentsMargins(0, 0, 0, 0)
             cell_layout.setSpacing(3)

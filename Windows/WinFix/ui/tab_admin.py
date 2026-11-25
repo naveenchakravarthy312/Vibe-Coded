@@ -37,8 +37,8 @@ class AdminShortcutsTab(QWidget):
         card = QFrame()
         card.setObjectName("CardPanel")
         vbox = QVBoxLayout(card)
-        vbox.setContentsMargins(14, 12, 14, 14)
-        vbox.setSpacing(10)
+        vbox.setContentsMargins(12, 10, 12, 12)
+        vbox.setSpacing(6)
 
         lbl_title = QLabel("Windows Admin Shortcuts")
         lbl_title.setObjectName("SectionTitle")
@@ -49,25 +49,26 @@ class AdminShortcutsTab(QWidget):
         vbox.addWidget(lbl_sub)
 
         grid = QGridLayout()
-        grid.setSpacing(10)
+        grid.setSpacing(8)
         cols = 3
+        for col in range(cols):
+            grid.setColumnStretch(col, 1)
         for idx, entry in enumerate(actions.ADMIN_SHORTCUTS):
             cell = QFrame()
-            cell.setStyleSheet(
-                "QFrame { background-color: #141414; border: 1px solid #2C2C30; border-radius: 6px; }"
-            )
+            cell.setObjectName("SubCard")
             c_layout = QVBoxLayout(cell)
-            c_layout.setContentsMargins(10, 10, 10, 10)
+            c_layout.setContentsMargins(10, 8, 10, 8)
             c_layout.setSpacing(4)
 
-            btn = QPushButton(entry["label"])
+            btn = QPushButton(entry["label"].replace("&", "&&"))
             if entry["id"] == "admin_ps":
                 btn.setObjectName("PrimaryButton")
             btn.clicked.connect(lambda _=False, sid=entry["id"]: actions.launch_admin_shortcut(sid, self._log))
             c_layout.addWidget(btn)
 
             lbl_cmd = QLabel(f"{entry['cmd']}  —  {entry['desc']}")
-            lbl_cmd.setStyleSheet(f"font-size: 9.5pt; color: {TEXT_MUTED}; border: none;")
+            lbl_cmd.setObjectName("MutedLabel")
+            lbl_cmd.setStyleSheet("font-size: 9.5pt;")
             lbl_cmd.setWordWrap(True)
             c_layout.addWidget(lbl_cmd)
 

@@ -29,8 +29,8 @@ class MainWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("WinFix — Portable Windows Troubleshooting & Power Utility")
-        self.resize(1080, 780)
-        self.setMinimumSize(900, 660)
+        self.resize(1140, 860)
+        self.setMinimumSize(940, 680)
 
         self._active_workers: list[object] = []
         self._build_ui()
@@ -45,6 +45,7 @@ class MainWindow(QMainWindow):
         # Persistent System Telemetry Header
         self.telemetry_bar = TelemetryBar()
         self.telemetry_bar.relaunch_admin_requested.connect(self._on_relaunch_admin)
+        self.telemetry_bar.refresh_requested.connect(self._on_global_refresh)
         root.addWidget(self.telemetry_bar)
 
         # 4-Tab Control Panel
@@ -54,10 +55,11 @@ class MainWindow(QMainWindow):
         self.tab_tweaks = TweaksTab(self.run_callable)
         self.tab_admin = AdminShortcutsTab(self._log)
 
-        self.tabs.addTab(self.tab_quick, "Quick Fixes & Diagnostics")
-        self.tabs.addTab(self.tab_apps, "App Installer & Updater")
-        self.tabs.addTab(self.tab_tweaks, "Win 10 UI & Debloat")
+        self.tabs.addTab(self.tab_quick, "Quick Fixes && Diagnostics")
+        self.tabs.addTab(self.tab_apps, "App Installer && Updater")
+        self.tabs.addTab(self.tab_tweaks, "Win 10 UI && Debloat")
         self.tabs.addTab(self.tab_admin, "Admin Shortcuts")
+        self.tabs.currentChanged.connect(self._on_tab_changed)
         root.addWidget(self.tabs, 1)
 
         # Collapsible Live Log Drawer
@@ -65,6 +67,14 @@ class MainWindow(QMainWindow):
         root.addWidget(self.log_drawer)
 
         self._log("INFO", "WinFix initialized. Ready.")
+
+    def _on_global_refresh(self) -> None:
+        self.tab_tweaks.refresh_states()
+        self.tab_apps.run_detection()
+
+    def _on_tab_changed(self, index: int) -> None:
+        if self.tabs.widget(index) is self.tab_tweaks:
+            self.tab_tweaks.refresh_states()
 
     def _log(self, level: str, message: str) -> None:
         self.log_drawer.append_log(level, message)

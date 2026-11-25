@@ -62,8 +62,8 @@ class LogDrawer(QFrame):
         self.console = QPlainTextEdit()
         self.console.setObjectName("LogConsole")
         self.console.setReadOnly(True)
-        self.console.setMinimumHeight(150)
-        self.console.setMaximumHeight(220)
+        self.console.setMinimumHeight(110)
+        self.console.setMaximumHeight(155)
         root.addWidget(self.console)
 
     def toggle_expanded(self) -> None:

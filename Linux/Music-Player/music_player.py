@@ -57,6 +57,7 @@ if (
 import mutagen  # type: ignore[import-not-found,reportMissingImports]
 from PyQt6.QtCore import (  # type: ignore[import-not-found,reportMissingImports]
     QEvent,
+    QMetaType,
     QObject,
     QPoint,
     QRect,
@@ -104,6 +105,7 @@ from PyQt6.QtWidgets import (  # type: ignore[import-not-found,reportMissingImpo
 try:
     from PyQt6.QtDBus import (  # type: ignore[import-not-found,reportMissingImports]
         QDBusAbstractAdaptor,
+        QDBusArgument,
         QDBusConnection,
         QDBusMessage,
         QDBusObjectPath,
@@ -846,10 +848,36 @@ class GlobalMediaKeyListener(QObject):
 
 if _HAS_QTDBUS:
 
-    class MprisRootAdaptor(QDBusAbstractAdaptor):
-        """org.mpris.MediaPlayer2 root interface adaptor."""
+    def _dbus_string_list(items: list[str]) -> QDBusArgument:
+        """Encode a Python list[str] strictly as D-Bus signature 'as' (QStringList)."""
+        arg = QDBusArgument()
+        arg.beginArray(QMetaType.Type.QString.value)
+        for item in items:
+            arg.add(str(item))
+        arg.endArray()
+        return arg
 
-        pyqtClassInfo("D-Bus Interface", "org.mpris.MediaPlayer2")
+    def _dbus_int64(value: int) -> QDBusArgument:
+        """Encode an integer strictly as D-Bus signature 'x' (int64 / qlonglong)."""
+        arg = QDBusArgument()
+        arg.add(int(value), QMetaType.Type.LongLong.value)
+        return arg
+
+    def _to_dbus_metadata(meta: dict[str, Any]) -> dict[str, Any]:
+        """Convert mpris_metadata() dict to strict MPRIS2 D-Bus wire types."""
+        out: dict[str, Any] = {}
+        for k, v in meta.items():
+            if k == "mpris:length":
+                out[k] = _dbus_int64(int(v))
+            elif k == "xesam:artist" and isinstance(v, list):
+                out[k] = _dbus_string_list([str(s) for s in v])
+            else:
+                out[k] = v
+        return out
+
+    @pyqtClassInfo("D-Bus Interface", "org.mpris.MediaPlayer2")
+    class MprisRootAdaptor(QDBusAbstractAdaptor):
+        """org.mpris.MediaPlayer2 root interface adaptor for KDE Plasma & KDE Connect."""
 
         def __init__(self, host: QObject, window: MinimalMusicPlayerWindow) -> None:
             super().__init__(host)
@@ -872,6 +900,19 @@ if _HAS_QTDBUS:
         @pyqtProperty(bool)
         def CanRaise(self) -> bool:
             return True
+
+        @pyqtProperty(bool)
+        def CanSetFullscreen(self) -> bool:
+            return True
+
+        @pyqtProperty(bool)
+        def Fullscreen(self) -> bool:
+            return self._window.isFullScreen()
+
+        @Fullscreen.setter
+        def Fullscreen(self, value: bool) -> None:
+            if bool(value) != self._window.isFullScreen():
+                self._window.toggle_fullscreen()
 
         @pyqtProperty(bool)
         def HasTrackList(self) -> bool:
@@ -902,10 +943,11 @@ if _HAS_QTDBUS:
                 "application/vnd.apple.mpegurl",
             ]
 
+    @pyqtClassInfo("D-Bus Interface", "org.mpris.MediaPlayer2.Player")
     class MprisPlayerAdaptor(QDBusAbstractAdaptor):
-        """org.mpris.MediaPlayer2.Player interface adaptor for Wayland/KDE/GNOME media keys."""
+        """org.mpris.MediaPlayer2.Player adaptor for KDE Plasma, KDE Connect & media keys."""
 
-        pyqtClassInfo("D-Bus Interface", "org.mpris.MediaPlayer2.Player")
+        Seeked = pyqtSignal("qlonglong")
 
         def __init__(self, host: QObject, window: MinimalMusicPlayerWindow) -> None:
             super().__init__(host)
@@ -939,6 +981,14 @@ if _HAS_QTDBUS:
         def Seek(self, offset_us: int) -> None:
             self._window.seek_relative(int(offset_us // 1000))
 
+        @pyqtSlot(QDBusObjectPath, "qlonglong")
+        def SetPosition(self, track_id: QDBusObjectPath, position_us: int) -> None:
+            self._window.mpris_set_position(track_id.path(), int(position_us))
+
+        @pyqtSlot(str)
+        def OpenUri(self, uri: str) -> None:
+            self._window.mpris_open_uri(uri)
+
         @pyqtProperty(str)
         def PlaybackStatus(self) -> str:
             return self._window.mpris_playback_status()
@@ -947,9 +997,17 @@ if _HAS_QTDBUS:
         def LoopStatus(self) -> str:
             return self._window.mpris_loop_status()
 
+        @LoopStatus.setter
+        def LoopStatus(self, value: str) -> None:
+            self._window.mpris_set_loop_status(value)
+
         @pyqtProperty(float)
         def Rate(self) -> float:
             return 1.0
+
+        @Rate.setter
+        def Rate(self, _value: float) -> None:
+            pass
 
         @pyqtProperty(float)
         def MinimumRate(self) -> float:
@@ -963,17 +1021,25 @@ if _HAS_QTDBUS:
         def Shuffle(self) -> bool:
             return self._window._shuffle
 
+        @Shuffle.setter
+        def Shuffle(self, value: bool) -> None:
+            self._window.mpris_set_shuffle(bool(value))
+
         @pyqtProperty("QVariantMap")
         def Metadata(self) -> dict[str, Any]:
-            return self._window.mpris_metadata()
+            return _to_dbus_metadata(self._window.mpris_metadata())
 
         @pyqtProperty(float)
         def Volume(self) -> float:
             return 0.0 if self._window._muted else (self._window._volume_pct / 100.0)
 
+        @Volume.setter
+        def Volume(self, value: float) -> None:
+            self._window.mpris_set_volume(float(value))
+
         @pyqtProperty("qlonglong")
         def Position(self) -> int:
-            return int(self._window._last_position_ms * 1000)
+            return int(max(0, self._window._last_position_ms) * 1000)
 
         @pyqtProperty(bool)
         def CanGoNext(self) -> bool:
@@ -1001,7 +1067,7 @@ if _HAS_QTDBUS:
 
 
 class MprisService(QObject):
-    """Registers Minimal Music Player on the desktop session D-Bus for global media keys."""
+    """Registers Minimal Music Player on the desktop session D-Bus for KDE Plasma & KDE Connect."""
 
     OBJECT_PATH = "/org/mpris/MediaPlayer2"
     BASE_SERVICE = "org.mpris.MediaPlayer2.minimal_music_player"
@@ -1043,13 +1109,24 @@ class MprisService(QObject):
         except Exception:
             self.registered = False
 
-    def emit_properties_changed(self, changed: dict[str, Any]) -> None:
+    def emit_properties_changed(
+        self,
+        changed: dict[str, Any],
+        *,
+        interface: str = "org.mpris.MediaPlayer2.Player",
+    ) -> None:
         if not self.registered or not _HAS_QTDBUS or not changed:
             return
         try:
             bus = QDBusConnection.sessionBus()
             if not bus.isConnected():
                 return
+            payload: dict[str, Any] = {}
+            for k, v in changed.items():
+                if k == "Metadata" and isinstance(v, dict):
+                    payload[k] = _to_dbus_metadata(v)
+                else:
+                    payload[k] = v
             msg = QDBusMessage.createSignal(
                 self.OBJECT_PATH,
                 "org.freedesktop.DBus.Properties",
@@ -1057,12 +1134,20 @@ class MprisService(QObject):
             )
             msg.setArguments(
                 [
-                    "org.mpris.MediaPlayer2.Player",
-                    changed,
-                    [],
+                    interface,
+                    payload,
+                    _dbus_string_list([]),
                 ]
             )
             bus.send(msg)
+        except Exception:
+            pass
+
+    def emit_seeked(self, position_us: int) -> None:
+        if not self.registered or not _HAS_QTDBUS or self._player_adaptor is None:
+            return
+        try:
+            self._player_adaptor.Seeked.emit(int(max(0, position_us)))
         except Exception:
             pass
 
@@ -2176,6 +2261,7 @@ class MinimalMusicPlayerWindow(QMainWindow):
         # Library, playlist & playback state
         self._tracks: list[Track] = []
         self._current_index: int = -1
+        self._mpris_track_gen: int = 0
         self._shuffle_order: list[int] = []
         self._shuffle_pos: int = -1
         self._error_flag: bool = False
@@ -2710,6 +2796,7 @@ class MinimalMusicPlayerWindow(QMainWindow):
         if cur_updated and 0 <= self._current_index < len(self._tracks):
             cur = self._tracks[self._current_index]
             self.player_canvas.set_track_info(cur.title, cur.artist, cur.duration_ms)
+            self._notify_mpris_state()
 
         if any_updated:
             self.player_canvas.sync_playlist(self._tracks, self._current_index)
@@ -2747,6 +2834,7 @@ class MinimalMusicPlayerWindow(QMainWindow):
         self._save_session_state()
         self._return_to_player()
         self.show_status("cleared queue")
+        self._notify_mpris_state()
 
     def undo_clear_queue(self) -> bool:
         if self._last_cleared_queue is None:
@@ -2800,6 +2888,7 @@ class MinimalMusicPlayerWindow(QMainWindow):
         )
         self._save_session_state()
         self._update_telemetry()
+        self._notify_mpris_state()
 
     def undo_remove_track(self) -> bool:
         if self._last_removed_track is None:
@@ -3031,6 +3120,7 @@ class MinimalMusicPlayerWindow(QMainWindow):
             return
 
         self._current_index = index
+        self._mpris_track_gen += 1
         self._error_flag = False
         self._last_position_ms = 0
         self._ensure_track_metadata(index)
@@ -3052,6 +3142,11 @@ class MinimalMusicPlayerWindow(QMainWindow):
         self._update_telemetry()
         self._notify_mpris_state()
 
+    def mpris_track_id(self) -> str:
+        if not (0 <= self._current_index < len(self._tracks)):
+            return "/org/mpris/MediaPlayer2/NoTrack"
+        return f"/org/mpris/MediaPlayer2/Track/{self._mpris_track_gen}_{self._current_index}"
+
     def mpris_playback_status(self) -> str:
         state = self.media_player.playbackState()
         if state == QMediaPlayer.PlaybackState.PlayingState:
@@ -3072,31 +3167,75 @@ class MinimalMusicPlayerWindow(QMainWindow):
         if not (0 <= self._current_index < len(self._tracks)):
             return {}
         track = self._tracks[self._current_index]
+        dur_ms = track.duration_ms if track.duration_ms > 0 else self._effective_duration_ms()
         meta: dict[str, Any] = {
             "xesam:title": track.title,
             "xesam:artist": [track.artist],
             "xesam:url": QUrl.fromLocalFile(str(track.path)).toString(),
-            "mpris:length": int(max(0, track.duration_ms) * 1000),
+            "mpris:length": int(max(0, dur_ms) * 1000),
         }
         if _HAS_QTDBUS:
-            meta["mpris:trackid"] = QDBusObjectPath(
-                f"/org/mpris/MediaPlayer2/Track/{self._current_index}"
-            )
+            meta["mpris:trackid"] = QDBusObjectPath(self.mpris_track_id())
         return meta
 
     def _notify_mpris_state(self) -> None:
-        status_str = self.mpris_playback_status()
         if hasattr(self, "mpris_service"):
+            has_tracks = bool(self._tracks)
             self.mpris_service.emit_properties_changed(
                 {
-                    "PlaybackStatus": status_str,
+                    "PlaybackStatus": self.mpris_playback_status(),
                     "Metadata": self.mpris_metadata(),
-                    "CanPlay": bool(self._tracks),
-                    "CanPause": bool(self._tracks),
-                    "CanGoNext": bool(self._tracks),
-                    "CanGoPrevious": bool(self._tracks),
+                    "LoopStatus": self.mpris_loop_status(),
+                    "Shuffle": self._shuffle,
+                    "Volume": 0.0 if self._muted else (self._volume_pct / 100.0),
+                    "CanPlay": has_tracks,
+                    "CanPause": has_tracks,
+                    "CanGoNext": has_tracks,
+                    "CanGoPrevious": has_tracks,
+                    "CanSeek": has_tracks,
                 }
             )
+
+    def mpris_set_volume(self, volume: float) -> None:
+        clamped = max(0.0, min(1.0, float(volume)))
+        pct = int(round(clamped * 100.0))
+        self._volume_pct = pct
+        self._muted = pct == 0
+        self._apply_audio_volume()
+        self._update_telemetry()
+        if hasattr(self, "mpris_service"):
+            self.mpris_service.emit_properties_changed(
+                {"Volume": 0.0 if self._muted else (self._volume_pct / 100.0)}
+            )
+
+    def mpris_set_shuffle(self, enabled: bool) -> None:
+        if bool(enabled) != self._shuffle:
+            self.toggle_shuffle()
+
+    def mpris_set_loop_status(self, loop_status: str) -> None:
+        mapping = {"None": 0, "Playlist": 1, "Track": 2}
+        if loop_status in mapping and self._repeat_mode_idx != mapping[loop_status]:
+            self._repeat_mode_idx = mapping[loop_status]
+            self._update_telemetry()
+            if hasattr(self, "mpris_service"):
+                self.mpris_service.emit_properties_changed(
+                    {"LoopStatus": self.mpris_loop_status()}
+                )
+
+    def mpris_set_position(self, track_id_path: str, position_us: int) -> None:
+        if not self._tracks or self._current_index < 0:
+            return
+        if track_id_path and track_id_path != self.mpris_track_id():
+            return
+        self.seek_to(int(position_us // 1000))
+
+    def mpris_open_uri(self, uri: str) -> None:
+        url = QUrl(uri)
+        local_str = url.toLocalFile() if url.isLocalFile() else uri
+        if local_str:
+            path = Path(local_str).expanduser()
+            if path.exists():
+                self.load_targets([path], auto_play=True)
 
     def dispatch_media_action(self, action: str, *, debounce_sec: float = 0.22) -> bool:
         """
@@ -3158,16 +3297,23 @@ class MinimalMusicPlayerWindow(QMainWindow):
         self._update_telemetry()
         self._notify_mpris_state()
 
-    def seek_relative(self, delta_ms: int) -> None:
+    def seek_to(self, position_ms: int) -> None:
         if not self._tracks or self._current_index < 0:
             return
         duration = self._effective_duration_ms()
-        target = max(0, self._last_position_ms + delta_ms)
+        target = max(0, int(position_ms))
         if duration > 0:
             target = min(target, max(0, duration - 100))
         self._last_position_ms = target
         self.media_player.setPosition(target)
         self.player_canvas.set_time(target, duration)
+        if hasattr(self, "mpris_service"):
+            self.mpris_service.emit_seeked(int(target * 1000))
+
+    def seek_relative(self, delta_ms: int) -> None:
+        if not self._tracks or self._current_index < 0:
+            return
+        self.seek_to(self._last_position_ms + delta_ms)
 
     def _effective_duration_ms(self) -> int:
         dur = self.media_player.duration()
@@ -3205,6 +3351,8 @@ class MinimalMusicPlayerWindow(QMainWindow):
             self._last_position_ms = 0
             self.media_player.setPosition(0)
             self.media_player.play()
+            if hasattr(self, "mpris_service"):
+                self.mpris_service.emit_seeked(0)
             return
 
         if self._shuffle:
@@ -3217,6 +3365,7 @@ class MinimalMusicPlayerWindow(QMainWindow):
                     self.media_player.stop()
                     self.player_canvas.set_time(0, self._effective_duration_ms())
                     self._update_telemetry()
+                    self._notify_mpris_state()
                     return
                 self._rebuild_shuffle_order()
                 next_pos = 0
@@ -3231,6 +3380,7 @@ class MinimalMusicPlayerWindow(QMainWindow):
                 self.media_player.stop()
                 self.player_canvas.set_time(0, self._effective_duration_ms())
                 self._update_telemetry()
+                self._notify_mpris_state()
                 return
             next_idx = 0
 
@@ -3245,6 +3395,8 @@ class MinimalMusicPlayerWindow(QMainWindow):
             self._last_position_ms = 0
             self.media_player.setPosition(0)
             self.player_canvas.set_time(0, self._effective_duration_ms())
+            if hasattr(self, "mpris_service"):
+                self.mpris_service.emit_seeked(0)
             return
 
         if self._shuffle:
@@ -3265,11 +3417,19 @@ class MinimalMusicPlayerWindow(QMainWindow):
         self._volume_pct = new_vol
         self._apply_audio_volume()
         self._update_telemetry()
+        if hasattr(self, "mpris_service"):
+            self.mpris_service.emit_properties_changed(
+                {"Volume": 0.0 if self._muted else (self._volume_pct / 100.0)}
+            )
 
     def toggle_mute(self) -> None:
         self._muted = not self._muted
         self._apply_audio_volume()
         self._update_telemetry()
+        if hasattr(self, "mpris_service"):
+            self.mpris_service.emit_properties_changed(
+                {"Volume": 0.0 if self._muted else (self._volume_pct / 100.0)}
+            )
 
     def _apply_audio_volume(self) -> None:
         linear = QAudio.convertVolume(
@@ -3289,10 +3449,16 @@ class MinimalMusicPlayerWindow(QMainWindow):
             self._shuffle_order.clear()
             self._shuffle_pos = -1
         self._update_telemetry()
+        if hasattr(self, "mpris_service"):
+            self.mpris_service.emit_properties_changed({"Shuffle": self._shuffle})
 
     def cycle_repeat(self) -> None:
         self._repeat_mode_idx = (self._repeat_mode_idx + 1) % len(REPEAT_MODES)
         self._update_telemetry()
+        if hasattr(self, "mpris_service"):
+            self.mpris_service.emit_properties_changed(
+                {"LoopStatus": self.mpris_loop_status()}
+            )
 
     # -----------------------------------------------------------------------
     # Media Player Signals
@@ -3384,6 +3550,11 @@ class MinimalMusicPlayerWindow(QMainWindow):
             self.showFullScreen()
         self._position_telemetry()
         self.setFocus()
+        if hasattr(self, "mpris_service"):
+            self.mpris_service.emit_properties_changed(
+                {"Fullscreen": self.isFullScreen()},
+                interface="org.mpris.MediaPlayer2",
+            )
 
     def toggle_frameless(self) -> None:
         if self.isFullScreen():

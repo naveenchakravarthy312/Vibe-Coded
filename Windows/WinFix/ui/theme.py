@@ -34,6 +34,16 @@ QFrame#CardPanel {{
     border-radius: 6px;
 }}
 
+QFrame#SubCard {{
+    background-color: {CANVAS_BG};
+    border: 1px solid {BORDER_COLOR};
+    border-radius: 6px;
+}}
+
+QWidget#TransparentCell {{
+    background-color: transparent;
+}}
+
 QFrame#LogDrawer {{
     background-color: {CARD_BG};
     border: 1px solid {BORDER_COLOR};
@@ -45,6 +55,7 @@ QLabel#SectionTitle {{
     font-weight: 700;
     color: {PRIMARY_ACCENT};
     background-color: transparent;
+    border: none;
 }}
 
 QLabel#CardTitle {{
@@ -52,12 +63,14 @@ QLabel#CardTitle {{
     font-weight: 600;
     color: {TEXT_PRIMARY};
     background-color: transparent;
+    border: none;
 }}
 
 QLabel#MutedLabel {{
     font-size: 10pt;
     color: {TEXT_MUTED};
     background-color: transparent;
+    border: none;
 }}
 
 QLabel#TelemetryMono {{
@@ -65,6 +78,7 @@ QLabel#TelemetryMono {{
     font-size: 10pt;
     color: {TEXT_PRIMARY};
     background-color: transparent;
+    border: none;
 }}
 
 QTabWidget::pane {{
@@ -149,6 +163,38 @@ QPushButton#DangerButton:hover {{
     background-color: #3A2327;
 }}
 
+QPushButton#SmallButton {{
+    padding: 5px 10px;
+    font-size: 10pt;
+}}
+
+QPushButton#SmallPrimary {{
+    background-color: {PRIMARY_ACCENT};
+    color: {CANVAS_BG};
+    border: 1px solid {PRIMARY_ACCENT};
+    padding: 5px 12px;
+    font-size: 10pt;
+    font-weight: 700;
+}}
+
+QPushButton#SmallPrimary:hover {{
+    background-color: #9DD0DE;
+    border-color: #9DD0DE;
+}}
+
+QPushButton#SmallDanger {{
+    background-color: #2B1D20;
+    color: {STATUS_RED};
+    border: 1px solid #4A282D;
+    padding: 5px 10px;
+    font-size: 10pt;
+    font-weight: 600;
+}}
+
+QPushButton#SmallDanger:hover {{
+    background-color: #3A2327;
+}}
+
 QLineEdit {{
     background-color: {CANVAS_BG};
     color: {TEXT_PRIMARY};
@@ -160,6 +206,33 @@ QLineEdit {{
 
 QLineEdit:focus {{
     border-color: {PRIMARY_ACCENT};
+}}
+
+QComboBox {{
+    background-color: {CANVAS_BG};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {BORDER_COLOR};
+    border-radius: 5px;
+    padding: 5px 10px;
+    font-size: 10.5pt;
+    min-width: 170px;
+}}
+
+QComboBox:hover {{
+    border-color: #3E3E44;
+}}
+
+QComboBox::drop-down {{
+    border: none;
+    width: 20px;
+}}
+
+QComboBox QAbstractItemView {{
+    background-color: {CARD_BG};
+    color: {TEXT_PRIMARY};
+    border: 1px solid {BORDER_COLOR};
+    selection-background-color: {SECONDARY_BG};
+    selection-color: {PRIMARY_ACCENT};
 }}
 
 QPlainTextEdit#LogConsole {{
@@ -196,6 +269,7 @@ QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
 QCheckBox {{
     spacing: 8px;
     background-color: transparent;
+    border: none;
 }}
 
 QCheckBox::indicator {{

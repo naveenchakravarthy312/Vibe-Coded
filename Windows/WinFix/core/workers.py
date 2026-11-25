@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import subprocess
 import tempfile
+import uuid
 from dataclasses import dataclass
 from typing import Callable
 
@@ -87,24 +88,24 @@ def run_streaming_command(
 
 
 def _run_elevated_step(step: ShellStep, log: Callable[[str, str], None]) -> int:
-    """Run a single command with UAC elevation and capture its output via a temp log file."""
+    """Run a single command with UAC elevation and capture its output via temp log files."""
     log("WARN", "Standard user detected — requesting UAC elevation for this action...")
     tmp_dir = tempfile.gettempdir()
-    out_file = os.path.join(tmp_dir, f"winfix_elev_{os.getpid()}.log")
-    script_file = os.path.join(tmp_dir, f"winfix_elev_{os.getpid()}.ps1")
+    token = f"{os.getpid()}_{uuid.uuid4().hex[:8]}"
+    out_file = os.path.join(tmp_dir, f"winfix_elev_{token}.out.log")
+    err_file = os.path.join(tmp_dir, f"winfix_elev_{token}.err.log")
+    script_file = os.path.join(tmp_dir, f"winfix_elev_{token}.ps1")
 
     try:
-        if os.path.exists(out_file):
-            os.remove(out_file)
-
         if step.is_powershell:
             body = (
+                f"[Console]::OutputEncoding = [System.Text.Encoding]::UTF8\n"
                 f"try {{\n"
                 f"  $out = & {{ {step.command} }} *>&1 | Out-String\n"
                 f"  Set-Content -Path '{out_file}' -Value $out -Encoding UTF8\n"
                 f"  exit $LASTEXITCODE\n"
                 f"}} catch {{\n"
-                f"  Set-Content -Path '{out_file}' -Value $_.ToString() -Encoding UTF8\n"
+                f"  Set-Content -Path '{err_file}' -Value $_.ToString() -Encoding UTF8\n"
                 f"  exit 1\n"
                 f"}}\n"
             )
@@ -112,7 +113,8 @@ def _run_elevated_step(step: ShellStep, log: Callable[[str, str], None]) -> int:
             escaped_cmd = step.command.replace("'", "''")
             body = (
                 f"$proc = Start-Process -FilePath 'cmd.exe' -ArgumentList '/c {escaped_cmd}' "
-                f"-NoNewWindow -Wait -PassThru -RedirectStandardOutput '{out_file}'\n"
+                f"-NoNewWindow -Wait -PassThru -RedirectStandardOutput '{out_file}' "
+                f"-RedirectStandardError '{err_file}'\n"
                 f"exit $proc.ExitCode\n"
             )
 
@@ -134,12 +136,13 @@ def _run_elevated_step(step: ShellStep, log: Callable[[str, str], None]) -> int:
             creationflags=CREATE_NO_WINDOW,
         )
 
-        if os.path.exists(out_file):
-            with open(out_file, "r", encoding="utf-8", errors="replace") as fh:
-                for raw_line in fh:
-                    line = raw_line.rstrip("\r\n")
-                    if line:
-                        log("OUT", line)
+        for path, lvl in ((out_file, "OUT"), (err_file, "ERR")):
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8", errors="replace") as fh:
+                    for raw_line in fh:
+                        line = raw_line.rstrip("\r\n")
+                        if line:
+                            log(lvl, line)
 
         if proc.stderr and proc.stderr.strip():
             log("ERR", proc.stderr.strip())
@@ -151,7 +154,7 @@ def _run_elevated_step(step: ShellStep, log: Callable[[str, str], None]) -> int:
         log("ERR", f"UAC elevation cancelled or failed: {exc}")
         return 1
     finally:
-        for path in (out_file, script_file):
+        for path in (out_file, err_file, script_file):
             try:
                 if os.path.exists(path):
                     os.remove(path)

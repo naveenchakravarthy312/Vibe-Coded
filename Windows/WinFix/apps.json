@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "github_raw_url": "https://github.com/naveenchakravarthy312/Vibe-Coded/blob/main/Windows/WinFix/apps.json",
+  "github_raw_url": "https://raw.githubusercontent.com/naveenchakravarthy312/Vibe-Coded/main/Windows/WinFix/apps.json",
   "apps": [
     {
       "id": "google-chrome",
@@ -60,8 +60,8 @@
     },
     {
       "id": "brave-browser",
-      "name": "Browser",
-      "category": "Parent Essentials",
+      "name": "Brave Browser",
+      "category": "Browser",
       "method": "winget",
       "winget_id": "Brave.Brave",
       "direct_url": null,
@@ -155,7 +155,7 @@
     {
       "id": "7zip",
       "name": "7-Zip",
-      "category": "Untility",
+      "category": "Utilities",
       "method": "winget",
       "winget_id": "7zip.7zip",
       "direct_url": null,
@@ -521,7 +521,7 @@
     {
       "id": "bleachbit",
       "name": "BleachBit",
-      "category": "Diagnostics & Admin Tools",
+      "category": "Utilities",
       "method": "winget",
       "winget_id": "BleachBit.BleachBit",
       "direct_url": null,
@@ -540,7 +540,7 @@
     {
       "id": "rufus",
       "name": "Rufus",
-      "category": "Diagnostics & Admin Tools",
+      "category": "Utilities",
       "method": "winget",
       "winget_id": "Rufus.Rufus",
       "direct_url": null,
